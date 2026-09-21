@@ -1,0 +1,2615 @@
+<!DOCTYPE html>
+<!-- ============================================================
+   冰装模拟器（纯静态托管版）
+   单文件纯前端版（双击即用 / 静态托管）
+   - 暗色玻璃拟态 UI
+   - localStorage 持久化
+   - 详细中文注释，方便记事本编辑
+============================================================ -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>冰装模拟器</title>
+
+<style>
+/* ============================================================
+   一、全局基础样式（暗色玻璃拟态）
+============================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* 主色调 —— 亮色调主题 */
+  --bg: #f5f7fa;              /* 主背景：浅灰白 */
+  --bg-soft: #ffffff;         /* 次级背景：纯白卡片 */
+  --accent: #5b7cfa;          /* 主强调色：稍深蓝便于亮底可读 */
+  --accent-2: #8b5cf6;        /* 辅助强调色 */
+  --accent-grad: linear-gradient(135deg, #5b7cfa, #8b5cf6);
+  --text: #1a1d28;           /* 主文字：深色 */
+  --text-dim: #4a5266;       /* 次级文字 */
+  --text-faint: #8b95a8;     /* 极淡文字 */
+  --border: rgba(0,0,0,0.08);          /* 半透明黑边框 */
+  --border-strong: rgba(0,0,0,0.16);
+  --glass: rgba(255,255,255,0.72);     /* 亮毛玻璃 */
+  --glass-2: rgba(255,255,255,0.85);
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 10px;
+  --shadow-lg: 0 12px 48px rgba(91,124,250,0.18);   /* 亮调阴影带蓝调 */
+  --shadow-md: 0 6px 24px rgba(0,0,0,0.08);
+  --shadow-inset: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 全屏背景层（带微弱光晕装饰） */
+body {
+  background:
+    radial-gradient(800px 500px at 15% 0%, rgba(108,142,255,0.10), transparent 60%),
+    radial-gradient(700px 500px at 85% 100%, rgba(139,92,246,0.10), transparent 60%),
+    var(--bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   二、外层大框（垂直水平居中，包住全部内容）
+============================================================ */
+.app-frame {
+  width: 100%;
+  max-width: 1280px;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), var(--shadow-inset);
+  padding: 20px 24px 24px;
+  position: relative;
+}
+
+/* ============================================================
+   三、顶部按钮栏
+============================================================ */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.topbar-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-right: auto;
+  background: var(--accent-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.5px;
+}
+
+.btn {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  background: var(--glass-2);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+.btn:hover {
+  border-color: var(--accent);
+  background: rgba(108,142,255,0.12);
+  transform: translateY(-1px);
+}
+.btn:active { transform: translateY(0); }
+.btn-primary {
+  background: var(--accent-grad);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+.btn-primary:hover { filter: brightness(1.1); background: var(--accent-grad); }
+.btn-ghost { background: transparent; }
+.btn-danger { color: #ff6b6b; border-color: rgba(255,107,107,0.3); }
+.btn-danger:hover { background: rgba(255,107,107,0.12); border-color: #ff6b6b; }
+.btn-icon { width: 32px; padding: 0; justify-content: center; }
+
+select.btn { padding-right: 8px; }
+
+/* 方案下拉 */
+.build-select {
+  height: 32px;
+  min-width: 140px;
+  padding: 0 28px 0 12px;
+  border: 1px solid var(--border);
+  background: var(--glass-2);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%239aa0ad' d='M0 0l5 6 5-6z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+/* ============================================================
+   四、主区域：左侧装备格子 + 右侧属性面板
+============================================================ */
+.main-grid {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr;  /* 左装备 + 中立绘 + 右饰品 + 属性面板 */
+  gap: 16px;
+  align-items: start;
+}
+
+/* —— 中间立绘栏（RS.png，透明背景角色立绘） ——
+   高度 = 左5格总高 × 80%：(5 × 112 + 4 × 8) × 0.8 = 473.6 ≈ 474px
+   但用户反馈仍偏小，加大到 568px（接近左5格总高，更撑场） */
+.col-middle {
+  width: 260px;             /* 加宽容器，避免窄立绘被压缩 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+  gap: 10px;
+}
+.col-middle .char-art {
+  /* 立绘高度 = 左5格总高 × 80%：(5 × 112 + 4 × 8) × 0.8 = 473.6 ≈ 474px */
+  height: 474px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;       /* 兜底：若图片比例特殊仍保持完整显示 */
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+/* 立绘下方按钮行：上=一键选左五，下=魔法石（垂直排列） */
+.middle-btns {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  gap: 12px;
+}
+
+/* —— 立绘下方按钮（一键选左五 / 魔法石） —— */
+.slot-left5-btn {
+  width: 100%;
+  height: 48px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;                    /* 胶囊形 */
+  background: rgba(108,142,255,0.10);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+.slot-left5-btn:hover {
+  background: rgba(108,142,255,0.20);
+  transform: scale(1.02);
+}
+/* 魔法石按钮：橙色 */
+.slot-left5-btn.magic-btn {
+  background: rgba(245,158,11,0.10);
+  color: #f59e0b;
+  border-color: #f59e0b;
+}
+.slot-left5-btn.magic-btn:hover {
+  background: rgba(245,158,11,0.20);
+}
+
+/* —— 左列格子（140x140） —— */
+.col-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.slot-left {
+  width: 112px;                    /* 140 × 0.8 缩小20% */
+  height: 112px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: rgba(0,0,0,0.025);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+.slot-left:hover {
+  border-color: var(--accent);
+  transform: scale(1.02);
+  z-index: 2;
+}
+.slot-left.empty .slot-label {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.slot-left.filled {
+  border-style: solid;
+  border-color: var(--border-strong);
+}
+.slot-left.filled .slot-name {
+  color: #ffffff;                       /* 卡片名字一律白色 */
+  font-size: 17px;                      /* 15 + 2 = 17px */
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);  /* 加深阴影便于各种底色上可读 */
+}
+.slot-left .slot-part {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+/* 占位空格（不可点击） */
+.slot-left.placeholder {
+  border: 1px dashed transparent;
+  cursor: default;
+  background: transparent;
+}
+.slot-left.placeholder:hover { transform: none; border-color: transparent; }
+
+/* —— 右列格子（100x100，7排x2列） —— */
+.col-right {
+  display: grid;
+  grid-template-columns: 80px 80px;     /* 100 × 0.8 缩小20% */
+  grid-auto-rows: 80px;
+  gap: 8px;
+}
+.slot-right {
+  width: 80px;                          /* 100 × 0.8 缩小20% */
+  height: 80px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: rgba(0,0,0,0.025);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+.slot-right:hover {
+  border-color: var(--accent);
+  transform: scale(1.02);
+  z-index: 2;
+}
+.slot-right.empty .slot-label {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.slot-right.filled {
+  border-style: solid;
+  border-color: var(--border-strong);
+}
+.slot-right.filled .slot-name {
+  color: #ffffff;                       /* 卡片名字一律白色 */
+  font-size: 15px;                      /* 13 + 2 = 15px */
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.slot-right .slot-part {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.55);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.slot-right.placeholder {
+  border: 1px dashed transparent;
+  cursor: default;
+  background: transparent;
+}
+.slot-right.placeholder:hover { transform: none; border-color: transparent; }
+
+/* 套装效果按钮（圆形） */
+.slot-setbtn {
+  width: 80px;                          /* 100 × 0.8 缩小20% */
+  height: 80px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;                     /* 圆形 */
+  background: rgba(108,142,255,0.10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--accent);
+}
+.slot-setbtn:hover {
+  background: rgba(108,142,255,0.20);
+  transform: scale(1.02);
+}
+.slot-setbtn .setbtn-title { font-size: 11px; opacity: 0.8; }
+.slot-setbtn .setbtn-count { font-size: 22px; font-weight: 700; margin-top: 2px; }
+.slot-setbtn .setbtn-sub { font-size: 10px; opacity: 0.6; }
+
+/* —— 详细属性面板 —— */
+.attr-panel {
+  background: var(--glass-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  backdrop-filter: blur(10px);
+  min-width: 280px;
+}
+.attr-panel h3 {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+/* 属性面板右上角"对比"小按钮 */
+.btn-compare {
+  padding: 5px 15px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #34c759, #30b8e6);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-compare:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(52,199,89,0.35);
+}
+/* 编辑面板按钮 */
+.btn-panel-edit {
+  padding: 5px 15px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-panel-edit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245,158,11,0.35);
+}
+/* 包含面板开关按钮 */
+.btn-include-panel {
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(0,0,0,0.05);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-include-panel.active {
+  color: #fff;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  border-color: transparent;
+  box-shadow: 0 0 0 2px rgba(236,72,153,0.25);
+}
+/* —— 左右滑动开关 —— */
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle-switch input[type=checkbox] { display: none; }
+.toggle-slider {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: #cbd5e1;
+  border-radius: 22px;
+  transition: background 0.25s ease;
+  flex-shrink: 0;
+}
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.25s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-switch input:checked + .toggle-slider {
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+}
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(18px);
+}
+.toggle-label {
+  font-size: 13px;
+  color: var(--text);
+}
+/* 属性溢出值：红色 */
+.overflow-val {
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 11px;
+  margin-left: 2px;
+}
+/* 面板数值编辑弹窗的网格 */
+.panel-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.panel-edit-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.panel-edit-item .a-name { flex: 1; }
+/* 隐藏面板编辑弹窗中数字输入框的上下箭头 */
+#panelEditBody input[type=number]::-webkit-outer-spin-button,
+#panelEditBody input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#panelEditBody input[type=number] { -moz-appearance: textfield; }
+/* —— 属性对比弹窗：两列并排 —— */
+.cmp-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 700px) {
+  .cmp-cols { grid-template-columns: 1fr; }
+}
+.cmp-col {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  background: var(--glass-2);
+}
+.cmp-col-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cmp-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+}
+.cmp-col-list {
+  /* 复用 .attr-list 的 grid 2 列 */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+}
+/* 差异标记：高=红↑ 低=绿↓ 相等=灰
+   用 .attr-item.cmp-xxx 提升优先级到 3 类，覆盖 .attr-item.has-val */
+.attr-item.cmp-up .a-val { color: #dc2626 !important; font-weight: 700; }
+.attr-item.cmp-down .a-val { color: #16a34a !important; font-weight: 700; }
+.attr-item.cmp-eq .a-val { color: var(--text-faint) !important; }
+.cmp-arrow { font-size: 11px; margin-left: 2px; }
+
+/* —— 清空弹窗：4 个正方形大格子（112×112 同左格）+ 颜色区分 —— */
+.clear-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 112px);   /* 2 列正方形 */
+  grid-template-rows: repeat(2, 112px);     /* 2 行正方形 */
+  gap: 12px;
+  justify-content: center;                  /* 水平居中 */
+  padding: 8px 0;
+}
+.clear-cell {
+  width: 112px;
+  height: 112px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: #fff;
+  border: 1px solid transparent;
+}
+.clear-cell:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.clear-cell .clear-label {
+  font-size: 15px;
+  font-weight: 700;
+}
+/* 清空左五：蓝色（同主色） */
+.clear-left   { background: linear-gradient(135deg, #6c8eff, #5b7ae0); }
+/* 清空饰品：紫色 */
+.clear-right  { background: linear-gradient(135deg, #8b5cf6, #7c4ee0); }
+/* 全部清空：红色（危险） */
+.clear-all    { background: linear-gradient(135deg, #ef4444, #dc2626); }
+/* 取消：白色 */
+.clear-cancel {
+  background: rgba(0,0,0,0.04);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+.attr-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+}
+.attr-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.025);
+  font-size: 13px;
+}
+/* 属性分类标题（跨两列） */
+.attr-cat-header {
+  grid-column: 1 / -1;            /* 跨两列 */
+  margin-top: 10px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  text-transform: none;
+}
+.attr-cat-header:first-child { margin-top: 0; }
+.attr-item .a-name { color: var(--text-dim); }
+.attr-item .a-val { font-weight: 600; color: var(--text); }
+.attr-item.has-val { background: rgba(108,142,255,0.08); }
+.attr-item.has-val .a-val { color: var(--accent); }
+.attr-item.neg .a-val { color: #f59e0b; }
+/* 跨整行的属性项（如HP条件伤害三项，独占一行） */
+.attr-item.attr-full-row { grid-column: 1 / -1; }
+.panel-edit-item.attr-full-row { grid-column: 1 / -1; }
+
+/* ============================================================
+   五、弹窗（Modal）
+============================================================ */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.modal-mask.active {
+  display: flex;
+  animation: maskIn 0.15s ease;
+}
+@keyframes maskIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--bg-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: auto;                  /* 自适应内容宽度 */
+  max-width: 92vw;             /* 但不超过视窗 92%，避免顶满屏 */
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  animation: modalIn 0.15s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.modal.lg { max-width: 920px; }
+.modal.xl { max-width: min(1080px, 92vw); }   /* 自适应：内容撑开，但不超过视窗 92% */
+/* 对比弹窗专用：放宽高度让全部属性直接显示（不强制压缩） */
+.modal.cmp-fit { max-height: 92vh; }
+.modal.cmp-fit .modal-body { overflow-y: auto; }
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  flex: 1;
+}
+.modal-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.modal-close:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ============================================================
+   六、表单基础样式（设置弹窗等共用）
+============================================================ */
+.entry-section {
+  margin-bottom: 20px;
+}
+.entry-section h4 {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+.input {
+  height: 30px;
+  padding: 0 10px;
+  background: rgba(0,0,0,0.035);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input:focus { border-color: var(--accent); }
+.input.flex { flex: 1; }
+.input-color {
+  width: 40px;
+  height: 30px;
+  padding: 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+}
+textarea.input {
+  height: auto;
+  min-height: 60px;
+  padding: 8px 10px;
+  resize: vertical;
+  font-family: "Consolas", "Microsoft YaHei", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  width: 100%;
+}
+
+/* ============================================================
+   七、装备库弹窗
+============================================================ */
+.lib-item {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.lib-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+.lib-info .lname { font-weight: 700; font-size: 15px; }
+.lib-info .ldate { font-size: 11px; color: var(--text-faint); }
+.lib-info .ldesc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  line-height: 1.6;
+}
+
+/* 套装选择弹窗（点格子时） */
+.pick-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.pick-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.025);
+  transition: all 0.15s;
+}
+.pick-item:hover {
+  border-color: var(--accent);
+  background: rgba(108,142,255,0.10);
+}
+.pick-item .pcolor {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+.pick-item .pname { font-size: 13px; }
+
+/* 每行一个的纵向布局 + 数值明细 */
+.pick-list-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pick-item-row {
+  padding: 10px 12px;
+  align-items: flex-start;
+}
+.pick-item-row .pcolor {
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.pick-item-row .pick-text { flex: 1; min-width: 0; }
+.pick-item-row .pname {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.pick-item-row .pick-short {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+.pick-item-row .pattrs {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+/* 套装效果激活弹窗 */
+.activate-list { display: flex; flex-direction: column; gap: 8px; }
+.activate-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0,0,0,0.025);
+}
+.activate-item.checked {
+  border-color: var(--accent);
+  background: rgba(108,142,255,0.10);
+}
+.activate-item.disabled { opacity: 0.5; }
+.activate-item .acheck {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.activate-item.checked .acheck {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.activate-item.checked .acheck::after {
+  content: "";
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-top: -2px;
+}
+.activate-item .ainfo { flex: 1; }
+.activate-item .aname { font-weight: 600; font-size: 13px; }
+.activate-item .ameta { font-size: 11px; color: var(--text-faint); }
+
+/* Toast 提示 */
+.toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 10px 18px;
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  z-index: 2000;
+  display: none;
+  animation: toastIn 0.2s ease;
+}
+.toast.show { display: block; }
+.toast.success { border-color: rgba(108,142,255,0.5); }
+.toast.error { border-color: rgba(255,107,107,0.5); color: #ff6b6b; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* 卡片淡入动画 */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.2s ease; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+   主应用容器
+============================================================ -->
+<div class="app-frame">
+
+  <!-- 顶部按钮栏（黄/绿/深蓝三组） -->
+  <div class="topbar">
+    <!-- 黄框组：方案管理 -->
+    <div class="topbar-title">冰装模拟器</div>
+    <select id="buildSelect" class="build-select" title="搭配方案"></select>
+    <button class="btn" onclick="newBuild()">新建</button>
+    <button class="btn" onclick="duplicateBuild()">复制</button>
+    <button class="btn" onclick="renameBuild()">重命名</button>
+    <button class="btn btn-danger" onclick="deleteBuild()">删除</button>
+
+    <span style="width:1px;height:20px;background:var(--border);margin:0 4px;"></span>
+
+    <!-- 绿框组：套装库 -->
+    <button class="btn btn-primary" onclick="openLibraryModal()">冰装库</button>
+    <button class="btn" onclick="clearAllSlots()">清空</button>
+
+    <!-- 右侧深蓝组：设置 -->
+    <span style="flex:1;"></span>
+    <button class="btn" onclick="openSettingsModal()">设置</button>
+  </div>
+
+  <!-- 主区域：左装备栏 + 中央立绘 + 右饰品栏 + 属性面板 -->
+  <div class="main-grid">
+
+    <!-- 左列：5个部位 + 选左五按钮 -->
+    <div class="col-left" id="colLeft">
+      <!-- 由 JS 动态生成 -->
+    </div>
+
+    <!-- 中央立绘栏：RS.png 角色立绘（透明背景，分隔左右装备） -->
+    <div class="col-middle">
+      <img class="char-art" src="RS.png" alt="角色立绘">
+      <div class="middle-btns">
+        <div class="slot-left5-btn" onclick="openLeft5Picker()"><span>一键选左五</span></div>
+        <div class="slot-left5-btn magic-btn" onclick="openMagicStoneModal()"><span>魔法石</span></div>
+      </div>
+    </div>
+
+    <!-- 右列：7排x2列 -->
+    <div class="col-right" id="colRight">
+      <!-- 由 JS 动态生成 -->
+    </div>
+
+    <!-- 详细属性面板 -->
+    <div class="attr-panel">
+      <h3 style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+        <span>详细属性</span>
+        <span style="display:flex;align-items:center;gap:6px;">
+          <button class="btn-panel-edit" onclick="openPanelEditModal()" title="编辑当前面板数值">编辑当前面板</button>
+          <label class="toggle-switch" title="叠加当前面板数值到套装总和">
+            <input type="checkbox" id="toggleIncludePanel" onchange="toggleIncludePanel()">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label" style="font-size:12px;">包含当前面板</span>
+          </label>
+          <button class="btn-compare" onclick="openCompareModal()" title="与其他方案对比属性差异">对比</button>
+        </span>
+      </h3>
+      <div class="attr-list" id="attrList">
+        <!-- 由 JS 动态生成 -->
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================
+   弹窗：装备库
+============================================================ -->
+<div class="modal-mask" id="libraryMask">
+  <div class="modal lg">
+    <div class="modal-header">
+      <div class="modal-title">冰装库</div>
+      <button class="modal-close" onclick="closeModal('libraryMask')">×</button>
+    </div>
+    <div class="modal-body" id="libraryBody">
+      <!-- 由 JS 动态生成 -->
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+   弹窗：选套装（点格子时）
+============================================================ -->
+<div class="modal-mask" id="pickMask">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="pickTitle">选择套装</div>
+      <button class="modal-close" onclick="closeModal('pickMask')">×</button>
+    </div>
+    <div class="modal-body" id="pickBody">
+      <!-- 由 JS 动态生成 -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="pickClearBtn" onclick="clearPickSlot()">清除该格</button>
+      <button class="btn btn-ghost" onclick="closeModal('pickMask')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+   弹窗：套装效果激活
+============================================================ -->
+<div class="modal-mask" id="activateMask">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">套装效果（最多3套）</div>
+      <button class="modal-close" onclick="closeModal('activateMask')">×</button>
+    </div>
+    <div class="modal-body" id="activateBody">
+      <!-- 由 JS 动态生成 -->
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+   弹窗：设置
+============================================================ -->
+<div class="modal-mask" id="settingsMask">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">设置</div>
+      <button class="modal-close" onclick="saveSettings()">×</button>
+    </div>
+    <div class="modal-body" id="settingsBody">
+      <!-- 由 JS 动态生成 -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveSettings()">保存</button>
+      <button class="btn btn-ghost" onclick="saveSettings()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 属性对比弹窗 -->
+<div class="modal-mask" id="compareMask">
+  <div class="modal xl cmp-fit">
+    <div class="modal-header">
+      <div class="modal-title">属性对比</div>
+      <button class="modal-close" onclick="closeModal('compareMask')">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- 顶部选另一个方案 -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;">
+          <div style="font-size:11px;color:var(--text-faint);margin-bottom:4px;">当前方案</div>
+          <div id="compareCurrentName" style="font-size:13px;font-weight:600;color:var(--accent);"></div>
+        </div>
+        <div style="font-size:18px;color:var(--text-faint);">vs</div>
+        <div style="flex:1;min-width:140px;">
+          <div style="font-size:11px;color:var(--text-faint);margin-bottom:4px;">对比方案</div>
+          <select id="compareSelect" class="input" style="width:100%;" onchange="renderCompareBody()"></select>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-faint);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span>对比方案比当前方案<span style="color:#dc2626;font-weight:600;">高↑</span> 用红色、<span style="color:#16a34a;font-weight:600;">低↓</span> 用绿色</span>
+        <span style="display:flex;align-items:center;gap:16px;">
+          <label class="toggle-switch" title="两侧同时叠加当前面板数值">
+            <input type="checkbox" id="cmpIncludePanel" onchange="renderCompareBody()">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label" style="font-size:12px;">包含当前面板</span>
+          </label>
+          <label class="toggle-switch" title="切换显示对比值或本身数值">
+            <input type="checkbox" id="cmpShowDiff" onchange="renderCompareBody()">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label" style="font-size:12px;">显示对比值</span>
+          </label>
+        </span>
+      </div>
+      <!-- 对比表 -->
+      <div id="compareBody"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('compareMask')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用确认弹窗（清空等二次确认用） -->
+<div class="modal-mask" id="confirmMask">
+  <div class="modal" style="width:380px;">
+    <div class="modal-header">
+      <div class="modal-title" id="confirmTitle">确认</div>
+      <button class="modal-close" onclick="closeModal('confirmMask')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="confirmMessage" style="font-size:14px;line-height:1.6;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="confirmOkBtn">确认</button>
+      <button class="btn btn-ghost" onclick="closeModal('confirmMask')">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 清空弹窗：4 个正方形大格子按钮，颜色区分 -->
+<div class="modal-mask" id="clearMask" onclick="if(event.target===this) closeModal('clearMask')">
+  <div class="modal" style="width:380px;">
+    <div class="modal-header">
+      <div class="modal-title">清空当前方案</div>
+      <button class="modal-close" onclick="closeModal('clearMask')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="clear-grid">
+        <div class="clear-cell clear-left" onclick="doClear('left')">
+          <div class="clear-label">清空左五</div>
+        </div>
+        <div class="clear-cell clear-right" onclick="doClear('right')">
+          <div class="clear-label">清空饰品</div>
+        </div>
+        <div class="clear-cell clear-all" onclick="doClear('all')">
+          <div class="clear-label">全部清空</div>
+        </div>
+        <div class="clear-cell clear-cancel" onclick="closeModal('clearMask')">
+          <div class="clear-label">取消</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 当前套装属性查看弹窗（左5+右饰品套装效果） -->
+<div class="modal-mask" id="setAttrMask">
+  <div class="modal xl cmp-fit">
+    <div class="modal-header">
+      <div class="modal-title">当前套装属性</div>
+      <button class="modal-close" onclick="closeModal('setAttrMask')">×</button>
+    </div>
+    <div class="modal-body" id="setAttrBody" style="max-height:70vh;overflow-y:auto;">
+      <!-- 由 JS 动态生成 -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('setAttrMask')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 面板数值编辑弹窗：输入各属性的面板数值（渐减后/实际值） -->
+<div class="modal-mask" id="panelEditMask">
+  <div class="modal xl">
+    <div class="modal-header">
+      <div class="modal-title">编辑面板数值<span style="font-size:11px;font-weight:400;color:var(--text-dim);margin-left:8px;">输入脱下所有冰装后的数值</span></div>
+      <button class="modal-close" onclick="closeModal('panelEditMask')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="panelEditBody" style="max-height:60vh;overflow-y:auto;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="savePanelValues()">保存</button>
+      <button class="btn btn-ghost" onclick="closeModal('panelEditMask')">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 魔法石编辑弹窗：左5件各1个，武器2个，下拉选择 -->
+<div class="modal-mask" id="magicStoneMask">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">魔法石</div>
+      <button class="modal-close" onclick="closeModal('magicStoneMask')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="magicStoneBody" style="max-height:60vh;overflow-y:auto;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveMagicStones()">保存</button>
+      <button class="btn btn-ghost" onclick="closeModal('magicStoneMask')">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 搭配方案命名弹窗（新建/复制/重命名共用） -->
+<div class="modal-mask" id="buildInputMask">
+  <div class="modal" style="width:380px;">
+    <div class="modal-header">
+      <div class="modal-title" id="buildInputTitle">新建方案</div>
+      <button class="modal-close" onclick="closeModal('buildInputMask')">×</button>
+    </div>
+    <div class="modal-body">
+      <label style="display:block;font-size:13px;color:var(--text-dim);margin-bottom:6px;">方案名称</label>
+      <input class="input" id="buildInputName" style="width:100%;" placeholder="输入方案名"
+             onkeydown="if(event.key==='Enter'){confirmBuildInput();}">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="confirmBuildInput()">确认</button>
+      <button class="btn btn-ghost" onclick="closeModal('buildInputMask')">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast 提示 -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   八、数据定义区
+============================================================ */
+
+/* —— 属性词典：16种，含别称 —— */
+/* 每条：id 唯一标识；label 面板显示全称；aliases 匹配用别称数组 */
+const ATTR_DICT = [
+  // —— 基础能力值 ——
+  { id: "phys_atk",        label: "物理攻击力",                      aliases: ["物理攻击力","物攻"],                category: "base" },
+  { id: "mag_atk",         label: "魔法攻击力",                      aliases: ["魔法攻击力","魔攻"],                category: "base" },
+  { id: "adapt",           label: "适应力",                          aliases: ["适应力"],                            category: "base" },
+  // —— 攻击 ——
+  { id: "crit_rate",       label: "暴击率",                          aliases: ["暴击率","暴击"],                    category: "attack" },
+  { id: "crit_dmg",        label: "暴击伤害",                        aliases: ["暴击伤害","爆伤"],                  category: "attack" },
+  { id: "maximize",        label: "极大化",                          aliases: ["极大化","极大"],                    category: "attack" },
+  { id: "polarize",        label: "两极化",                          aliases: ["两极化","攻被"],                    category: "attack" },
+  { id: "boss_dmg",        label: "给BOSS怪物造成的伤害增加",       aliases: ["给BOSS怪物造成的伤害增加","王伤"],   category: "attack" },
+  { id: "dot_dmg",         label: "攻击造成持续伤害",                aliases: ["攻击造成持续伤害","流血","持续伤害","3秒内造成"], category: "attack" },
+  // —— 攻击 / HP条件伤害增加（归入攻击栏，不再单独分组） ——
+  { id: "high_hp_dmg",     label: "攻击HP50%以上的敌人伤害增加",     aliases: ["攻击HP50%以上的敌人","强者","50%以上的"], category: "attack", fullRow: true },
+  { id: "low_hp_dmg",      label: "攻击HP50%以下的敌人伤害增加",     aliases: ["攻击HP50%以下敌人的伤害","弱者","50%以下的"], category: "attack", fullRow: true },
+  { id: "hp100_dmg",       label: "攻击HP100%以下的敌人伤害增加",    aliases: ["攻击HP100%以下敌人的伤害","百增","估计HP100%以下敌人的伤害","100%以下的"], category: "attack", fullRow: true },
+  // —— 技能 ——
+  { id: "p2_skill_dmg",    label: "强烈的技能伤害增加",             aliases: ["强烈的技能伤害增加","P2","强烈"],    category: "skill" },
+  { id: "p3_skill_dmg",    label: "超越的技能伤害增加",              aliases: ["超越的技能伤害增加","P3","超越"],    category: "skill" },
+  { id: "cd_reduce",       label: "技能冷却时间减少",                aliases: ["技能冷却时间减少","CD","技能冷却时间"], category: "skill" },
+  { id: "all_skill_dmg",   label: "所有技能伤害增加",                aliases: ["所有技能伤害增加","全技"],           category: "skill" },
+  // —— 辅助 ——
+  { id: "mp_cost_reduce",  label: "技能MP消耗减少",                  aliases: ["技能MP消耗减少","减耗","MP消耗"],  category: "support" }
+];
+
+/* —— 属性缩写表：在"属性名称缩写"开关打开时用于显示 —— */
+const ATTR_ABBR = {
+  phys_atk:       "物攻",
+  mag_atk:        "魔攻",
+  adapt:          "适应",
+  crit_rate:      "暴击",
+  maximize:       "极大",
+  crit_dmg:       "爆伤",
+  polarize:       "攻被",
+  dot_dmg:        "流血",
+  boss_dmg:       "王伤",
+  high_hp_dmg:    "强者",
+  low_hp_dmg:     "弱者",
+  hp100_dmg:      "百增",
+  all_skill_dmg:  "全技",
+  p2_skill_dmg:   "P2",
+  p3_skill_dmg:   "P3",
+  cd_reduce:      "CD",
+  mp_cost_reduce: "减耗"
+};
+
+/* 取显示名：缩写开关开 → abbr，否则 label */
+function attrLabel(id) {
+  const a = ATTR_DICT.find(x => x.id === id);
+  if (!a) return id;
+  if (state.settings && state.settings.abbrMode) {
+    return ATTR_ABBR[id] || a.label;
+  }
+  return a.label;
+}
+
+/* —— 属性上限表（超过部分用红色显示溢出） —— */
+const ATTR_CAP = {
+  adapt: 60,           // 适应力 60%
+  crit_rate: 100,      // 暴击率 100%（渐减后自然封顶）
+  maximize: 100,       // 极大化 100%（渐减后自然封顶）
+  polarize: 60,        // 两极化 60%
+  cd_reduce: 35,       // 技能冷却时间减少 35%
+  mp_cost_reduce: 35   // 技能MP消耗减少 35%
+};
+
+/* 暴击率渐减：raw(未渐减) → actual(渐减后实际值) */
+function diminishCrit(raw) {
+  if (raw <= 40)  return raw;
+  if (raw <= 75)  return 40 + (raw - 40)  * 0.8;
+  if (raw <= 105) return 68 + (raw - 75)  * 0.6;
+  if (raw <= 140) return 86 + (raw - 105) * 0.4;
+  return 100;
+}
+/* 极大化渐减 */
+function diminishMaximize(raw) {
+  if (raw <= 40)  return raw;
+  if (raw <= 80)  return 40 + (raw - 40)  * 0.75;
+  if (raw <= 120) return 70 + (raw - 80)  * 0.5;
+  if (raw <= 160) return 90 + (raw - 120) * 0.25;
+  return 100;
+}
+/* 暴击反渐减：actual(渐减后) → raw(未渐减) */
+function reverseCrit(actual) {
+  if (actual <= 40) return actual;
+  if (actual <= 68) return 40 + (actual - 40) / 0.8;
+  if (actual <= 86) return 75 + (actual - 68) / 0.6;
+  if (actual <= 100) return 105 + (actual - 86) / 0.4;
+  return 140;
+}
+/* 极大化反渐减 */
+function reverseMaximize(actual) {
+  if (actual <= 40) return actual;
+  if (actual <= 70) return 40 + (actual - 40) / 0.75;
+  if (actual <= 90) return 80 + (actual - 70) / 0.5;
+  if (actual <= 100) return 120 + (actual - 90) / 0.25;
+  return 160;
+}
+/* 通用渐减：按 attrId 选择对应公式 */
+function diminish(attrId, raw) {
+  if (attrId === "crit_rate") return diminishCrit(raw);
+  if (attrId === "maximize")  return diminishMaximize(raw);
+  return raw;   // 其他属性无渐减
+}
+/* 通用反渐减 */
+function reverseDiminish(attrId, actual) {
+  if (attrId === "crit_rate") return reverseCrit(actual);
+  if (attrId === "maximize")  return reverseMaximize(actual);
+  return actual;
+}
+
+/* —— 属性分类定义（属性面板按此分组渲染） —— */
+const ATTR_CATEGORIES = [
+  { id: "base",       label: "基础能力值" },
+  { id: "attack",     label: "攻击" },
+  { id: "skill",      label: "技能" },
+  { id: "support",    label: "辅助" }
+];
+
+/* —— 部位定义 —— */
+const LEFT_PARTS  = ["发型","上衣","下衣","手套","鞋子"];           // 左5件固定
+const RIGHT_PARTS = ["武器","武饰","辅助","脸上","上衣","脸中","下衣","脸下","手臂","耳环","项链","戒指"];
+/* 右列布局（7排x2列，按渲染顺序） */
+const RIGHT_LAYOUT = [
+  ["__setbtn__","武器"],
+  ["武饰","辅助"],
+  ["脸上","上衣"],
+  ["脸中","下衣"],
+  ["脸下","手臂"],
+  ["耳环","项链"],
+  ["__setattr__","戒指"]    // 第7排左=查看套装属性按钮、右=戒指
+];
+
+/* —— 魔法石配置 —— */
+// 魔法石类型：id → { attrId, value }（value 为未乘倍数的基础值）
+const MAGIC_STONE_TYPES = {
+  crit_5:     { attrId: "crit_rate",     value: 5,   label: "暴击 5%" },
+  crit_6:     { attrId: "crit_rate",     value: 6,   label: "暴击 6%" },
+  max_5:      { attrId: "maximize",      value: 5,   label: "极大 5%" },
+  max_6:      { attrId: "maximize",      value: 6,   label: "极大 6%" },
+  boss_25:    { attrId: "boss_dmg",      value: 2.5, label: "王伤 2.5%" },
+  boss_3:     { attrId: "boss_dmg",      value: 3,   label: "王伤 3%" },
+  allskill_2: { attrId: "all_skill_dmg", value: 2,   label: "全技 2%" },
+  p2_2:       { attrId: "p2_skill_dmg",  value: 2,   label: "强烈技伤 2%" },
+  p3_2:       { attrId: "p3_skill_dmg",  value: 2,   label: "超越技伤 2%" }
+};
+// 可镶嵌魔法石的部位：左5件各1个，武器2个，其余没有
+const MAGIC_STONE_SLOTS = [
+  { side: "left",  part: "发型", count: 1 },
+  { side: "left",  part: "上衣", count: 1 },
+  { side: "left",  part: "下衣", count: 1 },
+  { side: "left",  part: "手套", count: 1 },
+  { side: "left",  part: "鞋子", count: 1 },
+  { side: "right", part: "武器", count: 2 }
+];
+// 武器的魔法石数值为2倍
+function stoneValue(side, part, stoneId) {
+  const st = MAGIC_STONE_TYPES[stoneId];
+  if (!st) return 0;
+  return side === "right" && part === "武器" ? st.value * 2 : st.value;
+}
+
+/* —— localStorage key —— */
+const LS_KEY = "iceSim_data_v2";
+
+/* —— 全局状态 —— */
+let state = {
+  periods: [],      // 所有套装数据
+  builds: [],       // 所有搭配方案
+  currentBuildId: null,
+  settings: {
+    abbrMode: false          // 属性名称缩写开关：true=所有属性显示用缩写
+  },
+  panelValues: {},    // 用户手动输入的面板数值（attrId -> 数值），均为"渐减后/上限后"的实际值
+  includePanel: false // 是否把面板数值加到套装总和上
+};
+
+/* —— 选套装弹窗上下文 —— */
+let pickContext = null;  // { part } 当前点开的格子部位
+
+/* ============================================================
+   九、工具函数
+============================================================ */
+
+/* 生成唯一 id */
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+/* Toast 提示 */
+function toast(msg, type = "info") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast show " + type;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.className = "toast"; }, 2200);
+}
+
+/* 按 attrId 查词典条目 */
+function findAttr(id) {
+  return ATTR_DICT.find(a => a.id === id);
+}
+
+/* 按文本模糊匹配属性词典（最长别名优先） */
+/* 旧版：只返回 attrId 字符串（保留以兼容其他调用） */
+function matchAttrByText(text) {
+  const r = matchAttrDetailed(text);
+  return r ? r.attrId : null;
+}
+
+/* 新版：返回 { attrId, alias, rest }
+   - attrId 匹配到的属性 id
+   - alias 实际匹配到的别称文本
+   - rest 把 alias 从原文本移除后的剩余文本（用来找数值，避免属性名里的数字被误取） */
+function matchAttrDetailed(text) {
+  if (!text) return null;
+  const all = [];
+  ATTR_DICT.forEach(a => a.aliases.forEach(al => all.push({ al, id: a.id })));
+  all.sort((x, y) => y.al.length - x.al.length);
+  for (const { al, id } of all) {
+    const idx = text.indexOf(al);
+    if (idx >= 0) {
+      const rest = (text.slice(0, idx) + " " + text.slice(idx + al.length)).trim();
+      return { attrId: id, alias: al, rest };
+    }
+  }
+  return null;
+}
+
+/* ============================================================
+   十、持久化与加载（data.json + localStorage）
+============================================================ */
+
+function saveState() {
+  /* periods 来自 data.json（只读），不保存到 localStorage */
+  const payload = JSON.stringify({
+    builds: state.builds,
+    currentBuildId: state.currentBuildId,
+    settings: state.settings,
+    panelValues: state.panelValues,
+    includePanel: state.includePanel
+  });
+  try { localStorage.setItem(LS_KEY, payload); } catch (e) {
+    console.warn("localStorage 保存失败：", e);
+  }
+}
+
+async function saveStateSync() {
+  saveState();
+  return true;
+}
+
+async function loadState() {
+  /* —— 第一步：从 data.json 加载装备库（periods），只读 —— */
+  /* 部署到 OSS 等静态托管后，fetch 可正常读取同目录下的 data.json */
+  /* 本地双击打开（file://协议）时 fetch 会被浏览器拦截，此时跳过 */
+  try {
+    const resp = await fetch('data.json');
+    if (resp.ok) {
+      const fileData = await resp.json();
+      if (fileData.periods && Array.isArray(fileData.periods)) {
+        state.periods = fileData.periods;
+        /* 确保每个套装有必要字段 */
+        state.periods.forEach(p => {
+          if (!p.color) p.color = "#3a3d4b";
+          if (!p.shortName) p.shortName = p.name;
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("data.json 加载失败（本地直接打开时无法 fetch），请部署到静态托管平台或用本地服务器", e);
+  }
+
+  /* —— 第二步：从 localStorage 加载用户数据（搭配方案、设置、面板） —— */
+  let data = null;
+  const raw = localStorage.getItem(LS_KEY);
+  if (raw) {
+    try { data = JSON.parse(raw); } catch (_) {}
+  }
+
+  /* 首次使用：创建默认方案 */
+  if (!data) {
+    const b = { id: uid(), name: "方案1", createdAt: Date.now(), slots: {}, activatedSets: [], magicStones: {} };
+    state.builds = [b];
+    state.currentBuildId = b.id;
+    saveState();
+    return;
+  }
+
+  try {
+    /* 注意：periods 已从 data.json 加载，不使用 localStorage 中的旧 periods */
+    state.builds = data.builds || [];
+    state.currentBuildId = data.currentBuildId || (state.builds[0] && state.builds[0].id);
+    state.settings = Object.assign(state.settings, data.settings || {});
+    state.panelValues = data.panelValues || {};
+    state.includePanel = data.includePanel || false;
+  } catch (e) { console.error("数据加载失败：", e); }
+
+  /* 兜底：没有方案时创建默认方案 */
+  if (!state.builds || state.builds.length === 0) {
+    const b = { id: uid(), name: "方案1", createdAt: Date.now(), slots: {}, activatedSets: [], magicStones: {} };
+    state.builds = [b];
+    state.currentBuildId = b.id;
+  }
+}
+
+/* 获取当前搭配方案 */
+function currentBuild() {
+  return state.builds.find(b => b.id === state.currentBuildId) || state.builds[0];
+}
+
+/* ============================================================
+   十一、UI 渲染：主页
+============================================================ */
+
+/* 渲染方案下拉 */
+function renderBuildSelect() {
+  const sel = document.getElementById("buildSelect");
+  sel.innerHTML = "";
+  state.builds.forEach(b => {
+    const opt = document.createElement("option");
+    opt.value = b.id;
+    opt.textContent = b.name;
+    if (b.id === state.currentBuildId) opt.selected = true;
+    sel.addEventListener("change", () => {}); // 占位
+    sel.appendChild(opt);
+  });
+  sel.onchange = (e) => {
+    state.currentBuildId = e.target.value;
+    saveState();
+    renderAll();
+  };
+}
+
+/* 渲染左列格子 */
+function renderLeftCol() {
+  const wrap = document.getElementById("colLeft");
+  wrap.innerHTML = "";
+  const build = currentBuild();
+  // 5 个部位格子
+  LEFT_PARTS.forEach(part => {
+    const periodId = build.slots[slotKey("left", part)];   // 用复合 key
+    const period = periodId ? state.periods.find(p => p.id === periodId) : null;
+    const div = document.createElement("div");
+    div.className = "slot-left " + (period ? "filled" : "empty");
+    if (period) {
+      div.style.background = period.color;
+      div.innerHTML = `<span class="slot-part">${part}</span><span class="slot-name">${escapeHtml(period.shortName || period.name)}</span>`;
+    } else {
+      div.innerHTML = `<span class="slot-label">${part}</span>`;
+    }
+    div.onclick = () => openPickModal(part, "left");   // 点左栏格子 → 只动左边
+    wrap.appendChild(div);
+  });
+  // 底部按钮（选左五、魔法石）已移至立绘下方，此处不再生成
+}
+
+/* "选左五"弹窗：列所有左5件齐全的套装，一键填入左5格 */
+function openLeft5Picker() {
+  if (state.periods.length === 0) { toast("冰装库为空", "error"); return; }
+  // 找出左5件都有的套装
+  const full = state.periods.filter(p => LEFT_PARTS.every(lp => p.left[lp] !== undefined));
+  const body = document.getElementById("pickBody");
+  document.getElementById("pickTitle").textContent = "选左五 - 选一套填入左侧5格";
+  if (full.length === 0) {
+    body.innerHTML = `<p style="color:var(--text-dim);text-align:center;padding:20px;">没有左5件齐全的套装</p>`;
+  } else {
+    body.innerHTML = `<div class="pick-list">` +
+      full.map(p => {
+        const nameDisplay = p.shortName && p.shortName !== p.name
+          ? `${escapeHtml(p.name)} <span class="pick-short">(${escapeHtml(p.shortName)})</span>`
+          : escapeHtml(p.name);
+        return `
+        <div class="pick-item" onclick="applyLeft5('${p.id}')">
+          <div class="pcolor" style="background:${p.color}"></div>
+          <div class="pname">${nameDisplay}</div>
+        </div>`;
+      }).join("") + `</div>`;
+  }
+  // 隐藏清除按钮（这个弹窗只填不删）
+  document.getElementById("pickClearBtn").style.display = "none";
+  openModal("pickMask");
+}
+
+/* 一键填入左5格 */
+function applyLeft5(pid) {
+  const build = currentBuild();
+  // 只填左5格，绝不动右饰品栏
+  LEFT_PARTS.forEach(lp => build.slots[slotKey("left", lp)] = pid);
+  saveState();
+  closeModal("pickMask");
+  renderAll();
+  toast("已更换左5件", "success");
+}
+
+/* 渲染右列格子 */
+function renderRightCol() {
+  const wrap = document.getElementById("colRight");
+  wrap.innerHTML = "";
+  const build = currentBuild();
+  RIGHT_LAYOUT.forEach(row => {
+    row.forEach(cell => {
+      if (cell === "__setbtn__") {
+        // 套装效果按钮
+        const count = build.activatedSets.length;
+        const div = document.createElement("div");
+        div.className = "slot-setbtn";
+        div.innerHTML = `<div class="setbtn-title">套装效果</div><div class="setbtn-count">${count}/3</div><div class="setbtn-sub">点击管理</div>`;
+        div.onclick = () => openActivateModal();
+        wrap.appendChild(div);
+        return;
+      }
+      if (cell === "__setattr__") {
+        // 查看当前套装属性按钮（戒指旁边）
+        const div = document.createElement("div");
+        div.className = "slot-setbtn";
+        div.innerHTML = `<div class="setbtn-title">套装属性</div><div class="setbtn-sub" style="font-size:9px;">点击查看</div>`;
+        div.onclick = () => openSetAttrModal();
+        wrap.appendChild(div);
+        return;
+      }
+      if (cell === "__empty__") {
+        const div = document.createElement("div");
+        div.className = "slot-right placeholder";
+        wrap.appendChild(div);
+        return;
+      }
+      // 正常部位格
+      const part = cell;
+      const periodId = build.slots[slotKey("right", part)];   // 用复合 key
+      const period = periodId ? state.periods.find(p => p.id === periodId) : null;
+      const div = document.createElement("div");
+      div.className = "slot-right " + (period ? "filled" : "empty");
+      if (period) {
+        div.style.background = period.color;
+        div.innerHTML = `<span class="slot-part">${part}</span><span class="slot-name">${escapeHtml(period.shortName || period.name)}</span>`;
+      } else {
+        div.innerHTML = `<span class="slot-label">${part}</span>`;
+      }
+      div.onclick = () => openPickModal(part, "right");   // 点右栏格子 → 只动右边
+      wrap.appendChild(div);
+    });
+  });
+}
+
+/* 渲染详细属性面板 */
+function renderAttrPanel() {
+  const wrap = document.getElementById("attrList");
+  wrap.innerHTML = "";
+  // 计算每种属性总值
+  const sums = {};
+  ATTR_DICT.forEach(a => sums[a.id] = 0);
+  const build = currentBuild();
+  // 1. 累加所有穿着单件的属性
+  // build.slots 的 key 是 "left|上衣" / "right|上衣" 复合格式
+  Object.entries(build.slots).forEach(([key, periodId]) => {
+    if (!periodId) return;
+    const [side, part] = key.split("|");   // 复合 key 拆出 side 和 part
+    if (!side || !part) return;
+    const p = state.periods.find(x => x.id === periodId);
+    if (!p) return;
+    const sd = side === "left" ? p.left : p.right;
+    const list = (sd && sd[part]) || [];
+    list.forEach(at => {
+      if (at.attrId && at.value !== null && !at.isDesc) {
+        sums[at.attrId] = (sums[at.attrId] || 0) + Number(at.value);
+      }
+    });
+  });
+  // 2. 累加左套装效果（左5件全来自同一期自动生效，不限3套）
+  const leftPeriodIds = LEFT_PARTS.map(p => build.slots[slotKey("left", p)]);
+  if (leftPeriodIds.every(id => id && id === leftPeriodIds[0])) {
+    const p = state.periods.find(x => x.id === leftPeriodIds[0]);
+    if (p && p.setLeft) {
+      p.setLeft.forEach(bonus => {
+        (bonus.effects || []).forEach(at => {
+          if (at.attrId && at.value !== null && !at.isDesc) {
+            sums[at.attrId] = (sums[at.attrId] || 0) + Number(at.value);
+          }
+        });
+      });
+    }
+  }
+  // 3. 累加已激活的右套装效果（最多3套）
+  // 统计右饰品栏穿着数（按 right|part 复合 key）
+  build.activatedSets.forEach(pid => {
+    const p = state.periods.find(x => x.id === pid);
+    if (!p || !p.setRight) return;
+    const worn = RIGHT_PARTS.filter(rp => build.slots[slotKey("right", rp)] === pid).length;
+    p.setRight.forEach(bonus => {
+      if (worn >= bonus.need) {
+        (bonus.effects || []).forEach(at => {
+          if (at.attrId && at.value !== null && !at.isDesc) {
+            sums[at.attrId] = (sums[at.attrId] || 0) + Number(at.value);
+          }
+        });
+      }
+    });
+  });
+  // 4. 累加魔法石属性
+  if (build.magicStones) {
+    Object.entries(build.magicStones).forEach(([key, stones]) => {
+      const [side, part] = key.split("|");
+      if (!side || !part) return;
+      (stones || []).forEach(sid => {
+        if (!sid) return;
+        sums[MAGIC_STONE_TYPES[sid].attrId] = (sums[MAGIC_STONE_TYPES[sid].attrId] || 0) + stoneValue(side, part, sid);
+      });
+    });
+  }
+  // 渲染：按 ATTR_CATEGORIES 分组显示
+  ATTR_CATEGORIES.forEach(cat => {
+    // 该分类下所有属性
+    const attrs = ATTR_DICT.filter(a => a.category === cat.id);
+    if (attrs.length === 0) return;
+    // 分类标题
+    const header = document.createElement("div");
+    header.className = "attr-cat-header";
+    header.textContent = cat.label;
+    wrap.appendChild(header);
+    // 分类下的属性行
+    attrs.forEach(a => {
+      // 1. 套装总和（未渐减）
+      const setSum = sums[a.id] || 0;
+      // 2. 面板数值叠加（includePanel 开时）
+      let totalRaw = setSum;
+      if (state.includePanel && state.panelValues[a.id] !== undefined) {
+        // 面板输入的是"渐减后/实际值"，反推成未渐减值才能和套装未渐减值相加
+        const panelRaw = reverseDiminish(a.id, Number(state.panelValues[a.id]));
+        totalRaw = setSum + panelRaw;
+      }
+      // 3. 渐减（暴击/极大化分段计算）
+      let actual = diminish(a.id, totalRaw);
+      // 4. 上限裁剪 + 溢出
+      const cap = ATTR_CAP[a.id];
+      let display = actual;
+      let overflow = 0;
+      if (cap !== undefined && actual > cap) {
+        overflow = actual - cap;
+        display = cap;
+      }
+      const v = display;
+      // 格式化数字：保留2位小数但去掉尾随零（60→"60"，60.5→"60.5"，67.25→"67.25"）
+      const fmt = n => parseFloat(Math.round(n * 100) / 100).toString();
+      const item = document.createElement("div");
+      item.className = "attr-item" + (a.fullRow ? " attr-full-row" : "") + (v !== 0 ? " has-val" + (v < 0 ? " neg" : "") : "");
+      const sign = "";   // 属性面板不显示加号（对比面板仍保留正负号）
+      // 溢出部分红色显示：如 "60% +2%" 其中 +2% 红色
+      if (overflow > 0.001) {
+        item.innerHTML = `<span class="a-name">${attrLabel(a.id)}</span><span class="a-val">${sign}${fmt(v)}%<span class="overflow-val"> +${fmt(overflow)}%</span></span>`;
+      } else {
+        item.innerHTML = `<span class="a-name">${attrLabel(a.id)}</span><span class="a-val">${sign}${fmt(v)}%</span>`;
+      }
+      wrap.appendChild(item);
+    });
+  });
+}
+
+/* 转义 HTML */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+}
+
+/* ============================================================
+   面板数值（手动输入的属性面板）
+============================================================ */
+
+/* 打开面板编辑弹窗：列出全部 16 种属性，可输入数值 */
+function openPanelEditModal() {
+  const body = document.getElementById("panelEditBody");
+  let html = "";
+  ATTR_CATEGORIES.forEach(cat => {
+    const attrs = ATTR_DICT.filter(a => a.category === cat.id);
+    if (!attrs.length) return;
+    html += `<div class="attr-cat-header">${escapeHtml(cat.label)}</div>`;
+    html += `<div class="panel-edit-grid">`;
+    attrs.forEach(a => {
+      const val = state.panelValues[a.id];
+      html += `<div class="panel-edit-item${a.fullRow ? ' attr-full-row' : ''}">
+        <span class="a-name">${attrLabel(a.id)}</span>
+        <input class="input" type="number" min="0" step="0.1"
+               data-attr-id="${a.id}"
+               value="${val !== undefined && val !== null ? val : ''}"
+               placeholder="0"
+               style="width:80px;text-align:right;">
+        <span style="color:var(--text-faint);">%</span>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  body.innerHTML = html;
+  openModal("panelEditMask");
+}
+
+/* 保存面板数值 */
+function savePanelValues() {
+  const inputs = document.querySelectorAll("#panelEditBody input[data-attr-id]");
+  inputs.forEach(inp => {
+    const id = inp.dataset.attrId;
+    const raw = inp.value.trim();
+    if (raw === "" || isNaN(Number(raw))) {
+      delete state.panelValues[id];
+    } else {
+      state.panelValues[id] = Number(raw);
+    }
+  });
+  saveState();
+  closeModal("panelEditMask");
+  renderAttrPanel();
+  toast("面板数值已保存", "success");
+}
+
+/* 切换"包含面板"开关 */
+function toggleIncludePanel() {
+  const cb = document.getElementById("toggleIncludePanel");
+  state.includePanel = cb ? cb.checked : !state.includePanel;
+  saveState();
+  renderAttrPanel();
+}
+
+/* 渲染时更新"包含面板"开关的勾选状态 */
+function updateIncludePanelBtn() {
+  const cb = document.getElementById("toggleIncludePanel");
+  if (cb) cb.checked = !!state.includePanel;
+}
+
+/* ============================================================
+   魔法石
+============================================================ */
+
+/* 打开魔法石编辑弹窗：左5件各1个，武器2个，下拉选择 */
+function openMagicStoneModal() {
+  const body = document.getElementById("magicStoneBody");
+  const build = currentBuild();
+  const ms = build.magicStones || {};
+
+  // 生成单个下拉框的选项
+  function stoneOptions(slot, idx) {
+    const key = slotKey(slot.side, slot.part);
+    const cur = (ms[key] || [])[idx] || "";
+    const isWeapon = slot.side === "right" && slot.part === "武器";
+    const opts = Object.entries(MAGIC_STONE_TYPES).map(([id, st]) => {
+      // 武器直接显示×2后的数值（如 5%暴击 → 10%暴击）
+      const name = st.label.split(" ")[0];
+      const v = isWeapon ? st.value * 2 : st.value;
+      const label = `${name} ${v}%`;
+      return `<option value="${id}" ${cur === id ? "selected" : ""}>${label}</option>`;
+    }).join("");
+    return `<option value="">无</option>${opts}`;
+  }
+
+  // 左列：左5件（发型、上衣、下衣、手套、鞋子）各1个
+  let leftHtml = `<div class="attr-cat-header">左件（各1个）</div>`;
+  MAGIC_STONE_SLOTS.filter(s => s.side === "left").forEach(slot => {
+    const key = slotKey(slot.side, slot.part);
+    leftHtml += `<div class="panel-edit-item">
+      <span class="a-name">${slot.part}</span>
+      <select class="input" data-slot="${key}" data-idx="0" style="width:140px;">${stoneOptions(slot, 0)}</select>
+    </div>`;
+  });
+
+  // 右列：武器2个
+  let rightHtml = `<div class="attr-cat-header">武器（2个）</div>`;
+  const weaponSlot = MAGIC_STONE_SLOTS.find(s => s.side === "right" && s.part === "武器");
+  if (weaponSlot) {
+    for (let i = 0; i < weaponSlot.count; i++) {
+      const key = slotKey(weaponSlot.side, weaponSlot.part);
+      rightHtml += `<div class="panel-edit-item">
+        <span class="a-name">武器 ${i+1}</span>
+        <select class="input" data-slot="${key}" data-idx="${i}" style="width:140px;">${stoneOptions(weaponSlot, i)}</select>
+      </div>`;
+    }
+  }
+
+  body.innerHTML = `<div class="cmp-cols">
+    <div class="cmp-col">${leftHtml}</div>
+    <div class="cmp-col">${rightHtml}</div>
+  </div>`;
+  openModal("magicStoneMask");
+}
+
+/* 保存魔法石配置 */
+function saveMagicStones() {
+  const build = currentBuild();
+  const ms = {};
+  document.querySelectorAll("#magicStoneBody select[data-slot]").forEach(sel => {
+    const key = sel.dataset.slot;
+    const idx = Number(sel.dataset.idx);
+    const val = sel.value;
+    if (!ms[key]) ms[key] = [];
+    ms[key][idx] = val || null;
+  });
+  // 清理空数组
+  Object.keys(ms).forEach(k => {
+    if (ms[k].every(v => !v)) delete ms[k];
+  });
+  build.magicStones = ms;
+  saveState();
+  closeModal("magicStoneMask");
+  renderAttrPanel();
+  toast("魔法石已保存", "success");
+}
+
+/* ============================================================
+   属性对比功能
+============================================================ */
+
+/* 计算指定 build 的 16 种属性总和（复用 renderAttrPanel 的逻辑提取出来）
+   返回 { attrId: 数值 } */
+function calcBuildSums(build) {
+  const sums = {};
+  ATTR_DICT.forEach(a => sums[a.id] = 0);
+  if (!build) return sums;
+  // 1) 左5件单件属性（必须5件同套才生效）
+  const leftPeriodId = build.slots[slotKey("left", "发型")];
+  const leftPeriod = leftPeriodId ? state.periods.find(p => p.id === leftPeriodId) : null;
+  const leftAllSame = leftPeriod && LEFT_PARTS.every(lp => build.slots[slotKey("left", lp)] === leftPeriodId);
+  if (leftAllSame) {
+    LEFT_PARTS.forEach(lp => {
+      (leftPeriod.left[lp] || []).forEach(at => {
+        if (at.attrId && at.value !== null) sums[at.attrId] = (sums[at.attrId] || 0) + Number(at.value);
+      });
+    });
+    // 左套装效果
+    (leftPeriod.setLeft || []).forEach(b => {
+      (b.effects || []).forEach(at => {
+        if (at.attrId && at.value !== null) sums[at.attrId] = (sums[at.attrId] || 0) + Number(at.value);
+      });
+    });
+  }
+  // 2) 右饰品：单件属性（全部生效）+ 激活套装效果
+  RIGHT_PARTS.forEach(rp => {
+    const pid = build.slots[slotKey("right", rp)];
+    if (!pid) return;
+    const p = state.periods.find(x => x.id === pid);
+    if (!p) return;
+    (p.right[rp] || []).forEach(at => {
+      if (at.attrId && at.value !== null) sums[at.attrId] = (sums[at.attrId] || 0) + Number(at.value);
+    });
+  });
+  // 右件统计
+  const rightWorn = {};
+  RIGHT_PARTS.forEach(rp => {
+    const pid = build.slots[slotKey("right", rp)];
+    if (pid) rightWorn[pid] = (rightWorn[pid] || 0) + 1;
+  });
+  // 仅激活的套装才生效
+  (build.activatedSets || []).forEach(pid => {
+    const p = state.periods.find(x => x.id === pid);
+    if (!p) return;
+    const worn = rightWorn[pid] || 0;
+    (p.setRight || []).forEach(b => {
+      if (worn >= b.need) {
+        (b.effects || []).forEach(at => {
+          if (at.attrId && at.value !== null) sums[at.attrId] = (sums[at.attrId] || 0) + Number(at.value);
+        });
+      }
+    });
+  });
+  // 3) 魔法石属性
+  if (build.magicStones) {
+    Object.entries(build.magicStones).forEach(([key, stones]) => {
+      const [side, part] = key.split("|");
+      if (!side || !part) return;
+      (stones || []).forEach(sid => {
+        if (!sid) return;
+        sums[MAGIC_STONE_TYPES[sid].attrId] = (sums[MAGIC_STONE_TYPES[sid].attrId] || 0) + stoneValue(side, part, sid);
+      });
+    });
+  }
+  return sums;
+}
+
+/* 计算某方案各属性的"实际显示值"（递减后 + 上限裁剪）
+   includePanel=true 时叠加当前面板数值（面板值为渐减后值，需反渐减为未渐减再相加） */
+function getBuildActual(build, includePanel) {
+  const sums = calcBuildSums(build);
+  const actual = {};
+  ATTR_DICT.forEach(a => {
+    let raw = sums[a.id] || 0;
+    if (includePanel && state.panelValues[a.id] !== undefined) {
+      raw += reverseDiminish(a.id, Number(state.panelValues[a.id]));
+    }
+    let v = diminish(a.id, raw);
+    const cap = ATTR_CAP[a.id];
+    if (cap !== undefined && v > cap) v = cap;
+    actual[a.id] = v;
+  });
+  return actual;
+}
+
+/* 打开对比弹窗：列出所有方案让选另一个 */
+function openCompareModal() {
+  if (state.builds.length < 2) {
+    toast("至少需要 2 个方案才能对比", "error");
+    return;
+  }
+  // 每次打开默认重置开关
+  const diffCb = document.getElementById("cmpShowDiff");
+  if (diffCb) diffCb.checked = false;
+  const incCb = document.getElementById("cmpIncludePanel");
+  if (incCb) incCb.checked = false;
+  const cur = currentBuild();
+  document.getElementById("compareCurrentName").textContent = cur ? cur.name : "";
+  // 下拉：列出除当前方案外所有方案
+  const sel = document.getElementById("compareSelect");
+  sel.innerHTML = state.builds
+    .filter(b => b.id !== state.currentBuildId)
+    .map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join("");
+  renderCompareBody();
+  openModal("compareMask");
+}
+
+/* 渲染对比表：左右两列并排，左当前方案/右对比方案(带红绿)
+   - cmpShowDiff=false → 右侧显示对比方案本身实际值 + 红绿箭头
+   - cmpShowDiff=true  → 右侧显示差值（对比方案-当前方案，递减后绝对差）+ 红绿箭头
+   - cmpIncludePanel=true → 两侧同时叠加当前面板数值 */
+function renderCompareBody() {
+  const body = document.getElementById("compareBody");
+  const cur = currentBuild();
+  const otherId = document.getElementById("compareSelect").value;
+  const other = state.builds.find(b => b.id === otherId);
+  if (!cur || !other) { body.innerHTML = ""; return; }
+  const showDiff = document.getElementById("cmpShowDiff").checked;
+  const incPanel = document.getElementById("cmpIncludePanel").checked;
+  const fmt = n => parseFloat(Math.round(n * 100) / 100).toString();
+  const actualCur = getBuildActual(cur, incPanel);
+  const actualOther = getBuildActual(other, incPanel);
+
+  /* 渲染单列属性面板（实际值，按4类分组）
+     isCompare=true 时按差异上色（红/绿 + 箭头） */
+  function renderColumn(actual, isCompare) {
+    let html = "";
+    ATTR_CATEGORIES.forEach(cat => {
+      const attrs = ATTR_DICT.filter(a => a.category === cat.id);
+      if (!attrs.length) return;
+      html += `<div class="attr-cat-header">${escapeHtml(cat.label)}</div>`;
+      attrs.forEach(a => {
+        const v = actual[a.id] || 0;
+        let valHtml = `${fmt(v)}%`;
+        let cls = "attr-item";
+        if (isCompare) {
+          const vCur = actualCur[a.id] || 0;
+          const diff = v - vCur;   // 递减后实际值的绝对差
+          if (diff > 0) {
+            cls = "attr-item cmp-up";
+            const showVal = showDiff ? `+${fmt(diff)}%` : `${fmt(v)}%`;
+            valHtml = `${showVal} <span class="cmp-arrow">↑</span>`;
+          } else if (diff < 0) {
+            cls = "attr-item cmp-down";
+            const showVal = showDiff ? `${fmt(diff)}%` : `${fmt(v)}%`;
+            valHtml = `${showVal} <span class="cmp-arrow">↓</span>`;
+          } else {
+            cls = "attr-item cmp-eq";
+            valHtml = showDiff ? `0%` : `${fmt(v)}%`;
+          }
+        }
+        html += `<div class="${cls}${a.fullRow ? ' attr-full-row' : ''}">
+          <span class="a-name">${escapeHtml(attrLabel(a.id))}</span>
+          <span class="a-val">${valHtml}</span>
+        </div>`;
+      });
+    });
+    return html;
+  }
+
+  body.innerHTML = `
+    <div class="cmp-cols">
+      <div class="cmp-col">
+        <div class="cmp-col-title">${escapeHtml(cur.name)}<span class="cmp-tag">当前</span></div>
+        <div class="cmp-col-list">${renderColumn(actualCur, false)}</div>
+      </div>
+      <div class="cmp-col">
+        <div class="cmp-col-title">${escapeHtml(other.name)}<span class="cmp-tag">对比</span></div>
+        <div class="cmp-col-list">${renderColumn(actualOther, true)}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* 渲染全部 */
+function renderAll() {
+  renderBuildSelect();
+  renderLeftCol();
+  renderRightCol();
+  renderAttrPanel();
+  updateIncludePanelBtn();
+}
+
+/* ============================================================
+   十二、搭配方案管理
+============================================================ */
+
+/* 搭配方案命名弹窗回调（new/rename/duplicate 三种共用） */
+let buildInputAction = null;     // "new" / "duplicate" / "rename"
+
+function openBuildInput(action) {
+  buildInputAction = action;
+  const input = document.getElementById("buildInputName");
+  const title = document.getElementById("buildInputTitle");
+  const cur = currentBuild();
+  if (action === "new") {
+    title.textContent = "新建方案";
+    input.value = "方案" + (state.builds.length + 1);
+  } else if (action === "duplicate") {
+    title.textContent = "复制方案";
+    input.value = (cur ? cur.name : "方案") + " 副本";
+  } else if (action === "rename") {
+    title.textContent = "重命名方案";
+    input.value = cur ? cur.name : "";
+  }
+  openModal("buildInputMask");
+  setTimeout(() => { input.focus(); input.select(); }, 100);
+}
+
+function confirmBuildInput() {
+  const name = document.getElementById("buildInputName").value.trim();
+  if (!name) { toast("名称不能为空", "error"); return; }
+  const action = buildInputAction;
+  buildInputAction = null;
+  closeModal("buildInputMask");
+  if (action === "new") {
+    const b = { id: uid(), name, createdAt: Date.now(), slots: {}, activatedSets: [], magicStones: {} };
+    state.builds.push(b);
+    state.currentBuildId = b.id;
+    saveState();
+    renderAll();
+    toast("已新建方案：" + name, "success");
+  } else if (action === "duplicate") {
+    const cur = currentBuild();
+    if (!cur) return;
+    const b = {
+      id: uid(),
+      name,
+      createdAt: Date.now(),
+      slots: Object.assign({}, cur.slots),
+      activatedSets: [...cur.activatedSets],
+      magicStones: Object.assign({}, cur.magicStones)
+    };
+    state.builds.push(b);
+    state.currentBuildId = b.id;
+    saveState();
+    renderAll();
+    toast("已复制方案：" + name, "success");
+  } else if (action === "rename") {
+    const cur = currentBuild();
+    if (!cur) return;
+    cur.name = name;
+    saveState();
+    renderAll();
+    toast("已重命名", "success");
+  }
+}
+
+function newBuild()      { openBuildInput("new"); }
+function duplicateBuild() { openBuildInput("duplicate"); }
+function renameBuild()   { openBuildInput("rename"); }
+
+function deleteBuild() {
+  if (state.builds.length <= 1) { toast("至少保留一个方案", "error"); return; }
+  const cur = currentBuild();
+  if (!cur) return;
+  openConfirm("删除方案", `确定删除方案「${escapeHtml(cur.name)}」？`, () => {
+    state.builds = state.builds.filter(b => b.id !== cur.id);
+    state.currentBuildId = state.builds[0].id;
+    saveState();
+    renderAll();
+    toast("已删除", "success");
+  });
+}
+
+/* 一键选左5：从当前右套装里挑一个含全部左5件的套装，或简单按第一个套装填 */
+function autoFillLeft() {
+  if (state.periods.length === 0) { toast("冰装库为空", "error"); return; }
+  // 优先找左5件都有的套装
+  const full = state.periods.find(p => LEFT_PARTS.every(lp => p.left[lp] && p.left[lp].length >= 0));
+  const build = currentBuild();
+  if (full) {
+    LEFT_PARTS.forEach(lp => build.slots[slotKey("left", lp)] = full.id);
+  } else {
+    // 退而求其次：用每个部位第一个可用套装
+    LEFT_PARTS.forEach(lp => {
+      const cand = state.periods.find(p => p.left[lp]);
+      if (cand) build.slots[slotKey("left", lp)] = cand.id;
+    });
+  }
+  saveState();
+  renderAll();
+  toast("已填充左5件", "success");
+}
+
+/* 清空所有格子 */
+/* 通用二次确认弹窗（替代浏览器 confirm）
+   - title: 弹窗标题
+   - message: 提示文本（支持 HTML）
+   - onOk: 确认时回调 */
+let confirmCallback = null;
+function openConfirm(title, message, onOk) {
+  document.getElementById("confirmTitle").textContent = title || "确认";
+  document.getElementById("confirmMessage").innerHTML = message || "";
+  confirmCallback = onOk;
+  // 重新绑定确认按钮（避免上次回调残留）
+  const okBtn = document.getElementById("confirmOkBtn");
+  okBtn.onclick = () => {
+    const cb = confirmCallback;
+    confirmCallback = null;
+    closeModal("confirmMask");
+    if (cb) cb();
+  };
+  openModal("confirmMask");
+}
+
+/* 清空：弹出 4 选项弹窗（清空左五/清空饰品/全部清空/取消） */
+function clearAllSlots() {
+  openModal("clearMask");
+}
+
+/* 实际执行清空操作
+   - left  : 只清左5格，不动右饰品和 activatedSets
+   - right : 只清右饰品格，并清掉 activatedSets（右套装激活全失效）
+   - all   : 全清空 */
+function doClear(mode) {
+  const build = currentBuild();
+  if (!build.magicStones) build.magicStones = {};
+  if (mode === "left") {
+    LEFT_PARTS.forEach(lp => {
+      delete build.slots[slotKey("left", lp)];
+      delete build.magicStones[slotKey("left", lp)];
+    });
+    toast("已清空左五", "success");
+  } else if (mode === "right") {
+    RIGHT_PARTS.forEach(rp => {
+      delete build.slots[slotKey("right", rp)];
+      delete build.magicStones[slotKey("right", rp)];
+    });
+    build.activatedSets = [];
+    toast("已清空饰品", "success");
+  } else if (mode === "all") {
+    build.slots = {};
+    build.activatedSets = [];
+    build.magicStones = {};
+    toast("已全部清空", "success");
+  }
+  saveState();
+  closeModal("clearMask");
+  renderAll();
+}
+
+/* ============================================================
+   十三、格子选择弹窗
+============================================================ */
+
+/* 生成 build.slots 的复合 key：left|上衣 / right|上衣 严格区分左右同名部位 */
+function slotKey(side, part) { return side + "|" + part; }
+
+function openPickModal(part, side) {
+  pickContext = { part, side };
+  const sideLabel = side === "left" ? "左服装" : "右饰品";
+  document.getElementById("pickTitle").textContent = `选${sideLabel} - ${part}`;
+  // 列出该 side 含该部位的套装
+  const list = state.periods.filter(p => {
+    const sd = side === "left" ? p.left : p.right;
+    return sd && sd[part] !== undefined;
+  });
+  const body = document.getElementById("pickBody");
+  if (list.length === 0) {
+    body.innerHTML = `<p style="color:var(--text-dim);text-align:center;padding:20px;">没有含${sideLabel}「${part}」的套装</p>`;
+  } else {
+    // 每行一个：色块 + 全称(简称) + 该套在该部位的属性数值明细
+    body.innerHTML = `<div class="pick-list pick-list-vertical">` +
+      list.map(p => {
+        const sd = side === "left" ? p.left : p.right;
+        const attrs = (sd[part] || []).map(a => {
+          const label = a.attrId ? attrLabel(a.attrId) : (a.raw || "");
+          const v = a.value !== null ? ` ${a.value > 0 ? "+" : ""}${a.value}%` : "";
+          return `${label}${v}`;
+        }).join(" · ");
+        const nameDisplay = p.shortName && p.shortName !== p.name
+          ? `${escapeHtml(p.name)} <span class="pick-short">(${escapeHtml(p.shortName)})</span>`
+          : escapeHtml(p.name);
+        return `
+          <div class="pick-item pick-item-row" onclick="pickPeriod('${p.id}')">
+            <div class="pcolor" style="background:${p.color}"></div>
+            <div class="pick-text">
+              <div class="pname">${nameDisplay}</div>
+              <div class="pattrs">${attrs || "无属性"}</div>
+            </div>
+          </div>`;
+      }).join("") + `</div>`;
+  }
+  const build = currentBuild();
+  const key = slotKey(side, part);
+  document.getElementById("pickClearBtn").style.display = build.slots[key] ? "" : "none";
+  openModal("pickMask");
+}
+
+/* 清理 activatedSets：移除已删除套装 + 件数不足触发阈值的套装
+   （换散件后某套件数不够，它的套装效果本来就不生效，不该占激活名额） */
+function cleanActivatedSets(build) {
+  // 统计右栏各套装穿着件数
+  const wornMap = {};
+  RIGHT_PARTS.forEach(rp => {
+    const pid = build.slots[slotKey("right", rp)];
+    if (pid) wornMap[pid] = (wornMap[pid] || 0) + 1;
+  });
+  build.activatedSets = build.activatedSets.filter(id => {
+    // 套装已删除 → 移除
+    const p = state.periods.find(x => x.id === id);
+    if (!p) return false;
+    // 取最小触发阈值
+    const minNeed = p.setRight && p.setRight.length
+      ? Math.min(...p.setRight.map(b => b.need || 2))
+      : 2;
+    // 穿着件数 < 阈值 → 不生效，移除
+    return (wornMap[id] || 0) >= minNeed;
+  });
+  if (build.activatedSets.length > 3) build.activatedSets = build.activatedSets.slice(0, 3);
+}
+
+function pickPeriod(pid) {
+  if (!pickContext) return;
+  const build = currentBuild();
+  // 用复合 key 严格按 side 区分，左边选择绝不影响右边
+  build.slots[slotKey(pickContext.side, pickContext.part)] = pid;
+  // 换散件后清理：件数不足阈值的套装自动移出激活列表，腾出名额
+  cleanActivatedSets(build);
+  saveState();
+  closeModal("pickMask");
+  renderAll();
+}
+
+function clearPickSlot() {
+  if (!pickContext) return;
+  const build = currentBuild();
+  delete build.slots[slotKey(pickContext.side, pickContext.part)];
+  if (build.magicStones) delete build.magicStones[slotKey(pickContext.side, pickContext.part)];
+  cleanActivatedSets(build);
+  saveState();
+  closeModal("pickMask");
+  renderAll();
+}
+
+/* ============================================================
+   十四、套装效果激活弹窗
+============================================================ */
+
+/* 查看当前已选套装的所有属性（左5件套装属性 + 右饰品套装属性）
+   - 左侧一列：左5件同套时显示左套装效果（取消单件属性显示）
+   - 右侧一列：显示所有右饰品套装（含穿着件数/激活状态/件数达标高亮） */
+function openSetAttrModal() {
+  const build = currentBuild();
+  const body = document.getElementById("setAttrBody");
+  // —— 左5件套装 ——
+  const leftPeriodId = build.slots[slotKey("left", "发型")];
+  const leftPeriod = leftPeriodId ? state.periods.find(p => p.id === leftPeriodId) : null;
+  const leftAllSame = leftPeriod && LEFT_PARTS.every(lp => build.slots[slotKey("left", lp)] === leftPeriodId);
+
+  // 左栏 HTML：只显示左套装效果（取消单件属性）
+  let leftHtml = `<h4 style="color:var(--accent);margin-bottom:8px;">左5件套装属性</h4>`;
+  if (leftPeriod && leftAllSame) {
+    leftHtml += `<div style="font-size:13px;font-weight:600;margin-bottom:8px;">${escapeHtml(leftPeriod.name)} <span style="color:var(--text-dim);font-weight:400;">(${escapeHtml(leftPeriod.shortName || leftPeriod.name)})</span></div>`;
+    if (leftPeriod.setLeft && leftPeriod.setLeft.length) {
+      leftPeriod.setLeft.forEach(b => {
+        leftHtml += `<div style="margin-bottom:8px;padding-left:8px;border-left:2px solid var(--accent);">`;
+        leftHtml += `<div style="font-size:11px;color:var(--accent);margin-bottom:2px;">${b.need}件 ✓</div>`;
+        (b.effects || []).forEach(a => {
+          const label = a.attrId ? attrLabel(a.attrId) : (a.raw || "");
+          const v = a.value !== null ? ` ${a.value > 0 ? "+" : ""}${a.value}%` : "（描述）";
+          leftHtml += `<div style="font-size:12px;padding-left:8px;">${label}${v}</div>`;
+        });
+        leftHtml += `</div>`;
+      });
+    } else {
+      leftHtml += `<p style="color:var(--text-dim);font-size:12px;">该套装没有设置左套装效果</p>`;
+    }
+  } else {
+    leftHtml += `<p style="color:var(--text-dim);font-size:12px;">左5件未穿同一套</p>`;
+  }
+
+  // 右栏 HTML：所有右饰品套装（逻辑不变，高亮已激活套装属性）
+  let rightHtml = `<h4 style="color:var(--accent);margin-bottom:8px;">右饰品套装属性</h4>`;
+  const rightWorn = {};
+  RIGHT_PARTS.forEach(rp => {
+    const pid = build.slots[slotKey("right", rp)];
+    if (pid) rightWorn[pid] = (rightWorn[pid] || 0) + 1;
+  });
+  const rightPeriodIds = Object.keys(rightWorn);
+  if (!rightPeriodIds.length) {
+    rightHtml += `<p style="color:var(--text-dim);font-size:12px;">右栏未穿戴任何套装</p>`;
+  } else {
+    rightPeriodIds.forEach(pid => {
+      const p = state.periods.find(x => x.id === pid);
+      if (!p) return;
+      const worn = rightWorn[pid];
+      const active = build.activatedSets.includes(pid);
+      rightHtml += `<div style="margin-bottom:12px;padding:8px;border-radius:6px;background:rgba(0,0,0,0.025);border:1px solid ${active ? 'var(--accent)' : 'var(--border)'};${active ? 'box-shadow:0 0 0 1px var(--accent);' : ''}">`;
+      rightHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">`;
+      rightHtml += `<span style="font-size:13px;font-weight:600;">${escapeHtml(p.name)} <span style="color:var(--text-dim);font-weight:400;">(${escapeHtml(p.shortName || p.name)})</span></span>`;
+      rightHtml += `<span style="font-size:11px;color:${active ? 'var(--accent)' : 'var(--text-faint)'};">${active ? '已激活' : '未激活'} · ${worn}件</span>`;
+      rightHtml += `</div>`;
+      if (p.setRight && p.setRight.length) {
+        p.setRight.forEach(b => {
+          const met = worn >= b.need;
+          rightHtml += `<div style="margin-bottom:4px;padding-left:8px;border-left:2px solid ${met ? 'var(--accent)' : 'var(--border)'};">`;
+          rightHtml += `<div style="font-size:11px;color:${met ? 'var(--accent)' : 'var(--text-faint)'};">${b.need}件${met ? ' ✓' : '（未达）'}</div>`;
+          (b.effects || []).forEach(a => {
+            const label = a.attrId ? attrLabel(a.attrId) : (a.raw || "");
+            const v = a.value !== null ? ` ${a.value > 0 ? "+" : ""}${a.value}%` : "（描述）";
+            rightHtml += `<div style="font-size:12px;padding-left:8px;color:${active && met ? 'var(--text)' : 'var(--text-faint)'};">${label}${v}</div>`;
+          });
+          rightHtml += `</div>`;
+        });
+      }
+      rightHtml += `</div>`;
+    });
+  }
+
+  // 两列布局
+  body.innerHTML = `
+    <div class="cmp-cols">
+      <div class="cmp-col">
+        ${leftHtml}
+      </div>
+      <div class="cmp-col">
+        ${rightHtml}
+      </div>
+    </div>
+  `;
+  openModal("setAttrMask");
+}
+
+function openActivateModal() {
+  const build = currentBuild();
+  // 打开前先清理一次，确保激活列表里都是件数达标的套装
+  cleanActivatedSets(build);
+  saveState();
+  const body = document.getElementById("activateBody");
+  const wornMap = {};  // periodId -> 件数
+  RIGHT_PARTS.forEach(rp => {
+    const pid = build.slots[slotKey("right", rp)];
+    if (pid) wornMap[pid] = (wornMap[pid] || 0) + 1;
+  });
+  const wornList = Object.keys(wornMap).map(pid => {
+    const p = state.periods.find(x => x.id === pid);
+    return p ? { period: p, count: wornMap[pid] } : null;
+  }).filter(Boolean);
+
+  if (wornList.length === 0) {
+    body.innerHTML = `<p style="color:var(--text-dim);text-align:center;padding:20px;">还没有穿戴任何右套装</p>`;
+    openModal("activateMask");
+    return;
+  }
+  body.innerHTML = `<div class="activate-list">` + wornList.map(({ period, count }) => {
+    // 取最小触发阈值
+    const minNeed = period.setRight && period.setRight.length ? Math.min(...period.setRight.map(b => b.need || 2)) : 2;
+    const canActivate = count >= minNeed;
+    const isChecked = build.activatedSets.includes(period.id);
+    const disabled = !canActivate;
+    return `
+      <div class="activate-item ${isChecked ? 'checked' : ''} ${disabled ? 'disabled' : ''}"
+           onclick="${disabled ? '' : `toggleActivate('${period.id}')`}">
+        <div class="acheck"></div>
+        <div class="ainfo">
+          <div class="aname">${escapeHtml(period.name)}</div>
+          <div class="ameta">穿着 ${count} 件 · 触发阈值 ${minNeed} 件</div>
+        </div>
+      </div>`;
+  }).join("") + `</div>`;
+  openModal("activateMask");
+}
+
+function toggleActivate(pid) {
+  const build = currentBuild();
+  const idx = build.activatedSets.indexOf(pid);
+  if (idx >= 0) {
+    build.activatedSets.splice(idx, 1);
+  } else {
+    if (build.activatedSets.length >= 3) { toast("最多激活3套", "error"); return; }
+    build.activatedSets.push(pid);
+  }
+  saveState();
+  openActivateModal();
+  renderAttrPanel();
+  renderRightCol();
+}
+
+/* ============================================================
+   十五、装备库弹窗（只读查看，数据来自 data.json）
+============================================================ */
+
+function openLibraryModal() {
+  const body = document.getElementById("libraryBody");
+  if (state.periods.length === 0) {
+    body.innerHTML = `<p style="color:var(--text-dim);text-align:center;padding:30px;">冰装库为空，请在 data.json 中添加套装数据</p>`;
+    openModal("libraryMask");
+    return;
+  }
+  // 按时间倒序
+  const list = [...state.periods].sort((a, b) => b.createdAt - a.createdAt);
+  body.innerHTML = list.map(p => {
+    // 简化：只列出部位名，不显示属性明细
+    const leftParts  = LEFT_PARTS.filter(lp => p.left[lp] && p.left[lp].length);
+    const rightParts = Object.keys(p.right).filter(rp => p.right[rp] && p.right[rp].length);
+    const leftCnt  = p.setLeft  ? p.setLeft.length  : 0;
+    const rightCnt = p.setRight ? p.setRight.length : 0;
+    return `
+      <div class="lib-item">
+        <div class="lib-color" style="background:${p.color}"></div>
+        <div class="lib-info">
+          <div class="lname">${escapeHtml(p.name)}<span style="color:var(--text-dim);font-weight:400;font-size:12px;margin-left:6px;">（${escapeHtml(p.shortName || p.name)}）</span></div>
+          <div class="ldesc">
+            <b>左件:</b> ${leftParts.length ? leftParts.join("、") : "空"}
+            &nbsp;·&nbsp;
+            <b>右件:</b> ${rightParts.length ? rightParts.join("、") : "空"}
+            &nbsp;·&nbsp;
+            <b>套装效果:</b> 左${leftCnt}档 / 右${rightCnt}档
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+  openModal("libraryMask");
+}
+
+/* ============================================================
+   十六、设置弹窗
+============================================================ */
+
+function openSettingsModal() {
+  const body = document.getElementById("settingsBody");
+  const s = state.settings;
+  body.innerHTML = `
+    <div class="entry-section">
+      <label class="toggle-switch">
+        <input type="checkbox" id="setAbbrMode" ${s.abbrMode ? "checked" : ""} onchange="syncSettingsFromInputs(); renderAll();">
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">属性名称缩写</span>
+      </label>
+    </div>
+  `;
+  openModal("settingsMask");
+}
+
+/* 把弹窗里的输入同步到 state.settings 并保存（不关闭弹窗，供失焦/onchange 实时调用） */
+function syncSettingsFromInputs() {
+  state.settings.abbrMode = document.getElementById("setAbbrMode").checked;
+  saveState();
+}
+
+function saveSettings() {
+  syncSettingsFromInputs();
+  closeModal("settingsMask");
+  toast("设置已保存", "success");
+  renderAll();
+}
+
+/* ============================================================
+   十八、弹窗通用控制
+============================================================ */
+
+function openModal(id) {
+  document.getElementById(id).classList.add("active");
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove("active");
+}
+// 点击遮罩不关闭（只有关闭按钮才关）—— 不绑定 mask click 事件
+
+/* ============================================================
+   十九、初始化
+============================================================ */
+
+// 初始化：先异步等数据加载完再渲染
+(async () => {
+  await loadState();
+  renderAll();
+})();
+
+// 窗口关闭前保存一次数据（纯 localStorage，无需 XHR）
+window.addEventListener("beforeunload", () => {
+  saveState();
+});
+
+</script>
+</body>
+</html>
