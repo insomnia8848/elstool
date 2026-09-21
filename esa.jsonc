@@ -1,0 +1,9 @@
+{
+  "name": "elstool",
+  "installCommand": "",
+  "buildCommand": "true",
+  "assets": {
+    "directory": "./",
+    "notFoundStrategy": "singlePageApplication"
+  }
+}
