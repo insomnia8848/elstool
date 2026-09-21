@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "echo build skipped"
+    "build": "rm -rf dist && mkdir -p dist && cp -r index.html KEmaster.png undeaddragon.png iceburner.png yincang.png armorbreak.png undead_dragon_weapon undead_dragon_weapon_score team_break weekly ice_burner dist/ 2>/dev/null; echo build done"
   }
 }
