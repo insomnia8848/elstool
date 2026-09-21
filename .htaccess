@@ -1,0 +1,5 @@
+# 将目录自动指向 index.html，URL 不显示文件名
+DirectoryIndex index.html
+
+# 关闭目录列表（防止显示文件索引）
+Options -Indexes
