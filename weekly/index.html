@@ -1,0 +1,3947 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>周常记录</title>
+<style>
+/* =========================================================
+ * 小白编辑提示：改样式在下面 CSS 区域
+ * 想改默认标题 / 周周期 / ED上限 搜：TITLE_DEFAULT / WEEK_CYCLE / ED_MAX
+ * ========================================================= */
+* {
+    box-sizing: border-box;
+    font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif;
+    user-select: none;
+}
+input, textarea { user-select: text; }
+
+/* ---------- 自定义背景层（最底层，独立） ---------- */
+#bgLayer {
+    position: fixed;
+    inset: 0;
+    background: #0b0c0e center / cover no-repeat;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* body 直接透明，让 bgLayer 透出（按钮与表格自身不透明） */
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+    position: relative;
+    background: transparent;
+}
+
+/* ---------- 应用容器（半透明面板，让背景透出） ---------- */
+.app-container {
+    position: relative;
+    z-index: 1;
+    max-width: 1820px;
+    width: 100%;
+    /* 半透明深色面板，让下方按钮/表格仍保持不透明 */
+    background: rgba(26, 29, 33, 0.55);
+    backdrop-filter: blur(4px);
+    border-radius: 24px;
+    padding: 28px 24px;
+    box-shadow: 0 20px 35px rgba(0,0,0,0.6), 0 0 0 1px rgba(58,63,68,0.5) inset;
+}
+
+/* 标题行：标题 + 版本号 + 版本按钮 横向排布 */
+.title-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 16px;
+    margin-bottom: 8px;
+    padding: 0 8px;
+    flex-wrap: wrap;
+}
+.title-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+.version-tag {
+    font-size: 1.2rem;   /* 比标题 (2.4rem) 小一半 */
+    font-weight: 500;
+    color: #d2b98a;
+    background: rgba(43, 42, 38, 0.5);
+    border: 1px solid #6f6553;
+    border-radius: 10px;
+    padding: 4px 12px;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+.version-btn {
+    background: #373d49 !important;
+    color: #ecdbbf !important;
+    border-color: #7d8a9c !important;
+    font-size: 1rem !important;
+    padding: 6px 14px !important;
+}
+
+/* 标题（背景文字区域半透明） */
+.editable-title {
+    font-size: 2.4rem;
+    font-weight: 400;
+    color: #e5c9a8;
+    text-shadow: 0 0 6px #bd9e6b;
+    margin: 0;
+    letter-spacing: 2px;
+    display: inline-block;
+    border-bottom: 2px dashed #5f5b4f;
+    cursor: text;
+    padding: 0 10px 5px 10px;
+    transition: 0.2s;
+    background: rgba(43, 42, 38, 0.35);
+    border-radius: 8px 8px 0 0;
+}
+.editable-title:hover {
+    border-bottom-color: #b89b6e;
+    background: rgba(43, 42, 38, 0.7);
+}
+.title-edit {
+    background: #2d2f33;
+    border: 1px solid #b59d6b;
+    color: #eedbba;
+    font-size: 2.4rem;
+    font-weight: 400;
+    padding: 0 12px;
+    border-radius: 12px;
+    outline: none;
+    width: auto;
+    margin-bottom: 16px;
+    font-family: inherit;
+}
+
+/* ---------- 顶部按钮栏：按钮均不透明 ---------- */
+.action-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.btn {
+    /* 按钮不透明 */
+    background: #2f343a;
+    border: 1px solid #4f555e;
+    color: #d3d7de;
+    font-size: 1.05rem;
+    padding: 8px 22px;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 6px rgba(10,12,14,0.6);
+    transition: 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 1 !important;
+}
+.btn:hover {
+    background: #3f464f;
+    border-color: #7b838f;
+    color: #f0e6d2;
+    transform: translateY(-1px);
+}
+.btn.reset-btn { background: #352e24; border-color: #766b51; color: #e3caa5; }
+.btn.reset-btn:hover { background: #4f4232; }
+.btn.danger-btn { background: #4a2626; border-color: #824040; color: #f1c4c4; }
+.btn.danger-btn:hover { background: #5c2c2c; }
+.btn.plugin-btn { background: #2b3446; border-color: #566884; color: #d6e1f2; }
+.btn.plugin-btn:hover { background: #3a4760; }
+.btn.bg-btn { background: #3a2d40; border-color: #7a5d88; color: #e5cfee; }
+.btn.bg-btn:hover { background: #503d5a; }
+
+/* 上次重置时间 显示区 */
+.last-reset-info {
+    margin-left: 6px;
+    padding: 6px 16px;
+    background: rgba(42, 43, 47, 0.75);
+    color: #c9bfa6;
+    border-radius: 24px;
+    border: 1px dashed #5c5442;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+    opacity: 1 !important;
+}
+.last-reset-info b { color: #f0cf90; font-weight: 600; }
+
+/* 表格上方工具条：仅放"详情内容显隐切换"按钮（睁眼/闭眼）—— 靠左对齐 */
+.table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    margin: 10px 2px 8px 6px;
+}
+.toggle-eye-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #3b3322;
+    border: 1px solid #846b3f;
+    color: #f5dea8;
+    padding: 5px 14px;
+    border-radius: 24px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: 0.15s;
+}
+.toggle-eye-btn:hover { background: #4c4028; }
+.toggle-eye-btn.active { background: #604b27; border-color: #caa465; }
+
+/* ---------- 表格包裹区：不透明 ---------- */
+.table-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 18px;
+    border: 1px solid #3d4148;
+    background: #131517;   /* 表格整体不透明 */
+    padding: 4px 0 0 0;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.4);
+    scroll-behavior: smooth;
+    position: relative;
+}
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+    position: relative;
+}
+th, td {
+    border: 1px solid #33373e;
+    padding: 0;
+    height: 52px;
+    background: #1e2126;
+    color: #ddd;
+    text-align: center;
+    vertical-align: middle;
+    position: relative;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+th {
+    background: #262b33;
+    font-weight: 500;
+    color: #bfb195;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: relative;
+}
+.th-inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 100%;
+    padding: 0 10px;
+}
+.th-inner .dungeon-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: text;
+}
+
+/* 删除按钮 */
+.delete-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    background: #5c3d3d;
+    color: #efc5c5;
+    border-radius: 30px;
+    font-size: 16px;
+    line-height: 20px;
+    text-align: center;
+    cursor: pointer;
+    display: none;
+    z-index: 10;
+    border: 1px solid #a57272;
+    font-weight: bold;
+    box-shadow: 0 2px 4px black;
+}
+.delete-btn:hover { background: #913e3e; color: white; }
+th:hover .delete-btn,
+.account-header-cell:hover .delete-btn { display: block; }
+
+/* 账号列单元格（第一列）：一行内包含 拖动把手 / 复制 / 账号名 / 详情 四个控件
+   右上角预留 30px 空白给 absolute 删除角标，避免和详情按钮重叠 */
+.account-header-cell {
+    position: relative;
+    background: #2b2f38;
+    font-weight: 600;
+    color: #d8cbb4;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 0 32px 0 6px;   /* 右边 32px 专门留给删除角标，避免和详情按钮重叠 */
+    height: 100%;
+    min-width: 0;
+}
+/* 拖动把手 */
+.drag-handle-row {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 28px;
+    border-radius: 8px;
+    color: #8d8570;
+    font-size: 0.9rem;
+    cursor: grab;
+    user-select: none;
+    flex-shrink: 0;
+    transition: 0.1s;
+    letter-spacing: 1px;
+    font-weight: bold;
+}
+.drag-handle-row:hover { background: #3f4652; color: #ffddb0; }
+.drag-handle-row:active { cursor: grabbing; }
+
+.drag-handle-col {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 22px;
+    border-radius: 6px;
+    color: #8d8570;
+    font-size: 0.85rem;
+    cursor: grab;
+    user-select: none;
+    flex-shrink: 0;
+    transition: 0.1s;
+    letter-spacing: 1px;
+    font-weight: bold;
+}
+.drag-handle-col:hover { background: #473e2f; color: #ffddb0; }
+.drag-handle-col:active { cursor: grabbing; }
+
+/* 复制账号按钮 */
+.copy-number-btn-left {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    background: #3f4652;
+    border-radius: 30px;
+    color: #eaccad;
+    font-size: 1.2rem;
+    cursor: pointer;
+    box-shadow: 0 2px 3px black;
+    transition: 0.1s;
+    flex-shrink: 0;
+    text-align: center;
+    position: relative;
+}
+.copy-number-btn-left:hover { background: #556073; color: #ffddb0; }
+.copy-number-btn-left:active { transform: scale(0.9); }
+
+.account-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: text;
+    text-align: left;
+    max-width: none;
+    white-space: nowrap;
+}
+/* 账号名列内右侧：详情小 icon 按钮（悬浮提示「账号详情」，点击弹窗） */
+.acc-inline-detail-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 30px;
+    background: #3a392e;
+    border: 1px solid #6d5f3d;
+    color: #f5dea8;
+    font-size: 0.95rem;
+    cursor: pointer;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.4);
+    transition: 0.1s;
+    flex-shrink: 0;
+    padding: 0;
+    line-height: 1;
+}
+.acc-inline-detail-btn:hover { background: #4e4932; color: #ffedc2; }
+.acc-inline-detail-btn:active { transform: scale(0.92); }
+/* 未填账号时详情按钮淡化（仍可点开补填） */
+.acc-inline-detail-btn.acc-empty { opacity: 0.65; }
+
+/* =========================================================
+ *  新型拖拽效果：行/列用 transform 补位，克隆节点悬空拖拽
+ * ========================================================= */
+/* 行拖拽动画：所有行都允许位移补位 */
+#tableWrapper tbody tr[data-account-row] {
+    transition: transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    z-index: 1;
+}
+/* 列拖拽动画：所有 th / td 允许位移补位 */
+#tableWrapper th[data-dungeon-index],
+#tableWrapper td[data-dungeon-col] {
+    transition: transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    z-index: 1;
+}
+/* 插入位置指示线 */
+tbody tr[data-account-row].drag-over-above td {
+    box-shadow: inset 0 3px 0 0 #f5cd4a;
+}
+tbody tr[data-account-row].drag-over-below td {
+    box-shadow: inset 0 -3px 0 0 #f5cd4a;
+}
+th[data-dungeon-index].drag-over-left,
+td[data-dungeon-col].drag-over-left {
+    box-shadow: inset 3px 0 0 0 #f5cd4a !important;
+}
+th[data-dungeon-index].drag-over-right,
+td[data-dungeon-col].drag-over-right {
+    box-shadow: inset -3px 0 0 0 #f5cd4a !important;
+}
+
+/* 拖拽中：源位置仍占位但视觉淡化空出，不变色/不变透明是"悬空克隆"的事，源位置改成 ghost 灰 */
+tbody tr[data-account-row].drag-src-ghost td {
+    background: #202125 !important;
+    color: #888 !important;
+    opacity: 0.35;
+}
+th[data-dungeon-index].drag-src-ghost,
+td[data-dungeon-col].drag-src-ghost {
+    background: #202125 !important;
+    color: #888 !important;
+    opacity: 0.35;
+}
+
+/* 悬空克隆浮层：随鼠标移动，黄色方框包住 */
+.drag-floating {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none !important;
+    box-shadow: 0 0 0 2px #f5cd4a, 0 10px 30px rgba(0,0,0,0.7);
+    border-radius: 6px;
+    overflow: hidden;
+    background: #1e2126;
+}
+
+/* 状态单元格 */
+.status-cell {
+    cursor: pointer;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-shadow: 0 0 5px currentColor;
+}
+.status-done    { background: #1d4f3b !important; color: #b2ffcf; }
+.status-skipped { background: #B22222 !important; color: #f0d5b0; }
+.status-todo    { background: #282e34 !important; color: #ffffff; }
+
+/* 备注列 */
+.note-cell {
+    cursor: text;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 10px;
+    text-align: left;
+    color: #b6b9c2;
+}
+
+/* =========================================================
+ *  账号详情 弹窗 & 表单
+ * ========================================================= */
+#accDetailModal { z-index: 1080; }
+.acc-detail-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 38ch;         /* 紧凑：所有行统一宽度，不会冲出边框 */
+    align-items: stretch;
+}
+.adf-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #4a4a56;
+}
+.adf-title-row h3 { margin: 0; color: #ecdbbf; font-size: 1.15rem; }
+.adf-copy-btn {
+    appearance: none;
+    background: #3b3322;
+    border: 1px solid #846b3f;
+    color: #f5dea8;
+    border-radius: 16px;
+    padding: 4px 10px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: 0.12s;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.adf-copy-btn:hover { background: #4c4028; }
+.adf-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.adf-row label.adf-lbl {
+    color: #cfc4a5;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding-left: 4px;
+    line-height: 1.2;
+}
+.adf-input, .adf-textarea {
+    background: #1a1d22;
+    border: 1px solid #4b5364;
+    color: #ecdbbf;
+    border-radius: 12px;
+    padding: 8px 12px;
+    outline: none;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 1rem;
+    line-height: 1.4;
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    width: 100%;          /* 在 max-width 表单内自适应，保证不越界 */
+}
+.adf-input:focus, .adf-textarea:focus {
+    border-color: #caa465;
+    box-shadow: 0 0 0 2px rgba(202,164,101,0.18);
+    background: #1e2227;
+}
+/* 账号/密码：约 15 个数字字母宽度（max-width 约束，保证视觉统一短） */
+.adf-w-15 { max-width: 20ch; }
+/* 二级密码：约 10 个数字字母宽度 */
+.adf-w-10 { max-width: 13ch; }
+/* 账号备注：≥3 行，超出高度自适应于内容；同账号/密码的行宽（与表单最大宽一致） */
+.adf-textarea {
+    min-height: 84px;
+    width: 100%;
+    max-width: 38ch;        /* 对齐上面控件宽度，不要超边框 */
+    box-sizing: border-box;
+    resize: none;
+    overflow: hidden;
+}
+/* 详情关闭按钮：略放大但不要太大 */
+.modal-btn.adf-close-btn {
+    padding: 9px 36px;
+    font-size: 1.15rem;
+}
+/* 闭眼状态遮罩：除备注外的值不显示（标签仍显示） */
+.adf-veil {
+    position: relative;
+    background: #202329 !important;
+    border-color: #3a3f49 !important;
+    color: transparent !important;
+    user-select: none;
+    pointer-events: none;
+}
+.adf-veil::after {
+    content: '••••••';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    color: #8d95a4;
+    letter-spacing: 2px;
+    border-radius: 12px;
+}
+
+/* ED 列 */
+.ed-cell {
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    background: #2a2e36;
+}
+.ed-btn {
+    background: #3f4652;
+    border: none;
+    color: #eaccad;
+    width: 28px;
+    height: 28px;
+    border-radius: 30px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 3px black;
+    transition: 0.1s;
+    flex-shrink: 0;
+}
+.ed-btn:active { transform: scale(0.9); }
+.ed-btn.disabled { opacity: 0.3; pointer-events: none; background: #31353d; }
+.ed-value {
+    flex: 1;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: #f3cf9b;
+    cursor: text;
+    min-width: 35px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ed-value input {
+    width: 60px;
+    background: #1b1e24;
+    border: 1px solid #b29c6b;
+    color: #fad699;
+    font-size: 1.1rem;
+    text-align: center;
+    border-radius: 20px;
+    padding: 4px 0;
+    outline: none;
+}
+.ed-value input::-webkit-inner-spin-button,
+.ed-value input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.ed-value input[type=number] { -moz-appearance: textfield; }
+
+/* 内联输入框（单击编辑） */
+.inline-edit-wrap {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    z-index: 5;
+    background: inherit;
+}
+/* 进入编辑时：容器里除 inline-edit-wrap 之外的文本/子元素全部隐藏（保持占位，输入框原地覆盖） */
+._editing-active > :not(.inline-edit-wrap) {
+    visibility: hidden !important;
+}
+._editing-active {
+    /* 文本节点没有被 :not 选中，单独处理：给容器加 color 透明以隐藏直接文本 */
+    color: transparent !important;
+}
+._editing-active > .inline-edit-wrap .edit-input {
+    /* 确保子输入框颜色恢复正常可见 */
+    color: #efdbbe !important;
+}
+.inline-edit-wrap .edit-input {
+    flex: 1;
+    width: 100%;
+    height: 80%;
+    max-height: 44px;
+    background: #2d3038;
+    border: 2px solid #a38e60;
+    color: #efdbbe;
+    font-size: 1rem;
+    padding: 0 8px;
+    text-align: center;
+    border-radius: 4px;
+    outline: none;
+    box-shadow: inset 0 0 5px black;
+    font-family: inherit;
+}
+.inline-edit-wrap.left { justify-content: flex-start; }
+.inline-edit-wrap.left .edit-input { text-align: left; }
+
+/* =========================================================
+ *  插件栏（表格下方）
+ * ========================================================= */
+.plugin-bar {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 每行最多 2 个 */
+    gap: 16px;
+}
+.plugin-card {
+    background: rgba(27, 31, 37, 0.7);
+    padding: 16px 20px;
+    border-radius: 20px;
+    border: 1px solid #4a4f58;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    backdrop-filter: blur(2px);
+    /* 插件框最大覆盖本行，height 跟随内容自适应 */
+    justify-content: center;
+}
+/* 每行最多显示 2 个插件：所有插件一律参与两列布局，不再强制整行独占 */
+.plugin-card {
+    grid-column: span 1; /* 明确每个卡片占 1 列 */
+    min-width: 0;       /* 允许 flex 子内容压缩，防止溢出破两列 */
+}
+.plugin-title {
+    font-size: 0.95rem;
+    color: #bfb195;
+    letter-spacing: 1px;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* =========================================================
+ *  插件1：本周完成率（按钮类：环形+文字，点击展开柱状图）
+ * ========================================================= */
+.plugin-progress-btn {
+    background: linear-gradient(135deg, #2b4136 0%, #1f3328 100%);
+    border: 1px solid #4e8a65;
+    color: #cdf2dc;
+    padding: 14px 24px;
+    border-radius: 18px;
+    cursor: pointer;
+    transition: 0.18s;
+    box-shadow: 0 4px 8px rgba(10,12,14,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 180px;
+    opacity: 1 !important;
+}
+.plugin-progress-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.6);
+    border-color: #6fbf8d;
+}
+.progress-circle-wrapper {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+canvas#progressCircle {
+    width: 80px; height: 80px;
+    background: #252a32;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #0a0c0e, inset 0 0 8px #000;
+}
+.progress-percent {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #eedbaa;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-shadow: 0 0 6px #b59d6b;
+}
+.progress-btn-label {
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    color: #d6f2e1;
+}
+
+/* =========================================================
+ *  插件2：总ED统计（2行：上=ED统计，下=ED比例栏）
+ * ========================================================= */
+.ed-stat-top {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 4px 10px;
+}
+.ed-total {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: #eedbaa;
+    background: #2f363f;
+    padding: 6px 32px;
+    border-radius: 48px;
+    letter-spacing: 2px;
+    border: 1px solid #776e56;
+    box-shadow: 0 4px 0 #0f1113;
+}
+.ed-total span { color: #b8d0b0; font-size: 1.2rem; margin-right: 12px; }
+
+.ed-stat-bottom {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.rate-label {
+    color: #bfb195;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    font-size: 1rem;
+}
+.rate-controls { display: flex; align-items: center; gap: 6px; }
+.rate-btn {
+    background: #3f4652; border: none; color: #eaccad;
+    width: 32px; height: 32px;
+    border-radius: 30px;
+    font-size: 1rem; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 3px black;
+    transition: 0.1s; flex-shrink: 0;
+    opacity: 1 !important;
+}
+.rate-btn:hover { background: #556073; color: #ffddb0; }
+.rate-btn:active { transform: scale(0.9); }
+#edRateInput {
+    width: 70px;
+    background: #1b1e24;
+    border: 1px solid #b29c6b;
+    color: #fad699;
+    font-size: 1.1rem;
+    text-align: center;
+    border-radius: 20px;
+    padding: 4px 0;
+    outline: none;
+    height: 32px;
+}
+#edRateInput::-webkit-inner-spin-button,
+#edRateInput::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+#edRateInput[type=number] { -moz-appearance: textfield; }
+.rate-result { color: #d3d7de; font-size: 1.1rem; font-weight: 500; white-space: nowrap; }
+.rate-result span { color: #f3cf9b; font-weight: 600; cursor: text; border-radius: 6px; padding: 2px 6px; }
+.rate-result span:hover { background: #3a2e1d; }
+
+/* =========================================================
+ *  弹窗（通用遮罩、二次确认、柱状图、插件勾选、背景图选择）
+ * ========================================================= */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(3px);
+}
+/* 弹窗层级：pluginMgr / weekly（第1层）1100 → chart（第2层柱状图）1200 → confirm（二次确认）1300
+   保证后开弹层永远在上，不会被前一层的遮罩覆盖导致关闭按钮不可点 */
+#pluginMgrModal { z-index: 1050; }     /* 插件勾选/拖拽排序：在背景图弹层（如有）之上 */
+#weeklyModal    { z-index: 1100; }     /* 每周记录第1层：周期列表 */
+#chartModal     { z-index: 1200; }     /* 每周记录第2层：柱状图 / 本周完成率柱状图 */
+#confirmModal   { z-index: 1300; }     /* 二次确认弹窗：永远在最上 */
+.modal-content {
+    background: #2b2f38;
+    border: 2px solid #7f7259;
+    border-radius: 32px;
+    padding: 28px 36px;
+    box-shadow: 0 20px 30px black;
+    text-align: center;
+    color: #ecdbbf;
+    max-width: 420px;
+    width: min(420px, 92vw);
+}
+.modal-content h3 { margin: 4px 0 16px; color: #f0dfbb; letter-spacing: 1px; }
+.modal-content p { font-size: 1.2rem; margin: 5px 0 22px; }
+.modal-actions { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+.modal-btn {
+    background: #404754;
+    border: 1px solid #7d8a9c;
+    color: white;
+    font-size: 1.1rem;
+    padding: 8px 32px;
+    border-radius: 40px;
+    cursor: pointer;
+    opacity: 1 !important;
+}
+.modal-btn.confirm { background: #5f4d34; border-color: #cbaa74; }
+.modal-btn.primary { background: #3f5a6e; border-color: #6ea6c9; }
+.hidden { display: none; }
+
+/* 插件勾选弹窗 */
+.modal-list-content {
+    background: #2b2f38;
+    border: 2px solid #5e7a94;
+    border-radius: 24px;
+    padding: 24px 28px 22px;
+    box-shadow: 0 20px 30px black;
+    color: #ecdbbf;
+    width: min(480px, 92vw);
+    max-height: 80vh;
+    overflow: auto;
+}
+.modal-list-content h3 {
+    margin: 4px 0 16px;
+    color: #d6e4f2;
+    letter-spacing: 1px;
+    text-align: center;
+}
+/* ---------- 插件勾选弹窗列表 ---------- */
+.plugin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+.plugin-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 16px;
+    border: 1px solid #4a5260;
+    background: #22262e;
+    cursor: pointer;
+    transition: 0.15s;
+    position: relative;
+}
+.plugin-option:hover { border-color: #7a889c; background: #2a2f38; }
+.plugin-option.dragging { opacity: 0.45; }
+.plugin-option.drop-before::before,
+.plugin-option.drop-after::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #7cc3ff, transparent);
+    border-radius: 2px;
+}
+.plugin-option.drop-before::before { top: -1px; }
+.plugin-option.drop-after::after { bottom: -1px; }
+.plugin-option-drag-handle {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    color: #ffffff;
+    background: #2f3642;
+    border: 1px solid #3f495b;
+    font-size: 0.95rem;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    filter: drop-shadow(0 0 1px rgba(255,255,255,0.35));
+}
+.plugin-option-drag-handle:hover { background: #3b4555; }
+.plugin-option-drag-handle:active { cursor: grabbing; }
+.plugin-option input[type=checkbox] {
+    width: 20px;
+    height: 20px;
+    accent-color: #6ea6c9;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.plugin-option-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.plugin-option-text .name {
+    font-size: 1.05rem;
+    color: #f0e6d2;
+    font-weight: 500;
+}
+.plugin-option-text .desc {
+    font-size: 0.85rem;
+    color: #9aa4b3;
+}
+
+/* 把手：白色手 emoji（Unicode U+270B），如系统无白色变体，至少保证颜色是白色的粗体字
+   （使用文字形式：\270B\FE0E + color:#fff 强制呈现为文字并染色；系统变体若仍然绘制成彩色，外层白色背景仍可清晰识别白色的语义图标） */
+.drag-handle-row,
+.drag-handle-col,
+.plugin-option-drag-handle {
+    color: #ffffff !important;
+    text-shadow:
+        0 0 2px rgba(255,255,255,0.4),
+        0 1px 2px rgba(0,0,0,0.55);
+    background-blend-mode: screen;
+}
+
+/* === 插件管理：拖拽动画 + 限制范围（参考账号/副本拖动的漂浮克隆效果） === */
+.plugin-option.drag-src-ghost {
+    opacity: 0.35;
+    background: #2a2e36 !important;
+    border-style: dashed !important;
+}
+.plugin-option.drag-over-above { box-shadow: 0 -2px 0 #7cc3ff inset; }
+.plugin-option.drag-over-below { box-shadow: 0 2px 0 #7cc3ff inset; }
+.plugin-drag-floating {
+    position: fixed;
+    z-index: 2000;
+    pointer-events: none;
+    border: 2px solid #c9d7ec;
+    border-radius: 16px;
+    background: rgba(39, 44, 53, 0.92);
+    box-shadow: 0 16px 30px rgba(0,0,0,0.55), 0 0 0 1px #4e647a inset;
+    backdrop-filter: blur(3px);
+    opacity: 0.95;
+    overflow: hidden;
+}
+.plugin-option.dragging {
+    /* 不再仅靠 opacity: 原行被克隆出去后加 ghost 效果 */
+    opacity: 0.45;
+}
+
+/* === 每周记录：周期按钮网格（每行最多 2 个，同阅读顺序） === */
+.weekly-cycle-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin: 8px 0 18px 0;
+}
+.weekly-cycle-btn {
+    appearance: none;
+    border: 1px solid #4a5260;
+    background: linear-gradient(180deg, #2a3039, #22262e);
+    color: #ecdcbc;
+    border-radius: 20px;
+    padding: 14px 14px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: transform .12s, border-color .12s, background .12s;
+}
+.weekly-cycle-btn:hover {
+    border-color: #8fb8e4;
+    transform: translateY(-1px);
+    background: linear-gradient(180deg, #324150, #27303d);
+}
+.weekly-cycle-btn:active { transform: translateY(0) scale(0.99); }
+.weekly-cycle-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #9aa4b3;
+    padding: 24px 8px;
+    font-size: 0.98rem;
+}
+.weekly-cycle-percent {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #9ad5ff;
+    line-height: 1;
+    letter-spacing: 0.5px;
+}
+.weekly-cycle-name {
+    font-size: 0.95rem;
+    color: #d4cbb3;
+    text-align: center;
+    word-break: break-all;
+}
+
+/* 柱状图弹窗 */
+.modal-chart-content {
+    background: #2b2f38;
+    border: 2px solid #5c8a6e;
+    border-radius: 24px;
+    padding: 20px 30px 30px;
+    box-shadow: 0 20px 30px black;
+    text-align: center;
+    color: #ecdbbf;
+    width: min(820px, 92vw);
+    max-height: 90vh;
+    overflow: auto;
+}
+.modal-chart-content h3 {
+    margin: 6px 0 16px;
+    color: #d6f2e1;
+    letter-spacing: 1px;
+}
+.modal-chart-close {
+    margin-top: 18px;
+    background: #3f4652;
+    border: 1px solid #7a8394;
+    color: #f0e6d2;
+    font-size: 1.05rem;
+    padding: 6px 26px;
+    border-radius: 30px;
+    cursor: pointer;
+    opacity: 1 !important;
+}
+.modal-chart-close:hover { background: #556073; }
+
+/* tooltip */
+[title] { cursor: help; }
+
+/* 每周记录按钮（随文本自适应，保持与【本周完成率】按钮相近高度） */
+.plugin-simple-btn {
+    appearance: none;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    border: 1px solid #5e6979;
+    background: linear-gradient(180deg, #2c323c, #242832);
+    color: #ecdbbf;
+    font-size: 1.05rem;
+    border-radius: 18px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 24px;
+    transition: transform 0.12s, border-color 0.12s, background 0.12s, box-shadow 0.12s;
+    text-align: center;
+    white-space: nowrap;
+    box-shadow: 0 4px 8px rgba(10,12,14,0.5);
+}
+.plugin-simple-btn:hover {
+    border-color: #8fb8e4;
+    background: linear-gradient(180deg, #334150, #27303d);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 14px rgba(0,0,0,0.45);
+}
+.plugin-simple-btn:active { transform: translateY(0) scale(0.99); }
+
+/* 导出导入数据 插件布局 */
+.impexp-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: auto;
+    padding: 4px;
+    align-items: center;
+    justify-content: center;
+}
+.impexp-row { width: auto; }
+.impexp-row-top {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+}
+.impexp-row-bottom {
+    display: flex;
+    justify-content: center;
+}
+/* 导出 / 导入：与【本周完成率】按钮相近的尺寸，不再是大正方形 */
+.impexp-square-btn {
+    appearance: none;
+    width: auto;                /* 取消 100% 宽度，避免随卡片被放大 */
+    height: auto;               /* 取消 aspect-ratio 强制正方形 */
+    aspect-ratio: unset;
+    min-width: 0;
+    border: 1px solid #5e6979;
+    background: linear-gradient(180deg, #2e3440, #252a33);
+    color: #ecdbbf;
+    border-radius: 18px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 14px 20px;        /* 与本周完成率 padding 相当的高度感 */
+    font-size: 1.0rem;
+    white-space: nowrap;
+    box-shadow: 0 4px 8px rgba(10,12,14,0.5);
+    transition: transform 0.12s, border-color 0.12s, background 0.12s, box-shadow 0.12s;
+}
+.impexp-square-btn:hover {
+    border-color: #8fb8e4;
+    background: linear-gradient(180deg, #334150, #27303d);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 14px rgba(0,0,0,0.45);
+}
+.impexp-square-btn:active { transform: translateY(0) scale(0.99); }
+.impexp-square-btn.impexp-export { border-color: #4c7a5a; background: linear-gradient(180deg, #2a3c33, #232f2a); }
+.impexp-square-btn.impexp-export:hover { border-color: #77d19d; }
+.impexp-square-btn.impexp-import { border-color: #766944; background: linear-gradient(180deg, #3a3429, #2e2921); }
+.impexp-square-btn.impexp-import:hover { border-color: #d5b76e; }
+/* 部分导入：适应文本大小 */
+.impexp-rect-btn {
+    appearance: none;
+    min-width: 0;
+    width: auto;
+    height: auto;
+    border: 1px solid #4f586a;
+    background: linear-gradient(180deg, #2f3540, #262a32);
+    color: #ecdbbf;
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 18px;
+    gap: 6px;
+    white-space: nowrap;
+    box-shadow: 0 3px 6px rgba(10,12,14,0.45);
+    transition: transform 0.12s, border-color 0.12s, background 0.12s, box-shadow 0.12s;
+}
+.impexp-rect-btn:hover {
+    border-color: #8fb8e4;
+    background: linear-gradient(180deg, #334150, #27303d);
+    transform: translateY(-1px);
+}
+.impexp-rect-btn:active { transform: translateY(0) scale(0.995); }
+
+/* 版本记录列表 */
+.version-list {
+    text-align: left;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 6px 8px 8px;
+    margin: 10px 0 18px;
+}
+.version-item {
+    border-left: 3px solid #83714c;
+    padding: 10px 12px 12px 14px;
+    margin-bottom: 12px;
+    background: rgba(43, 42, 38, 0.5);
+    border-radius: 0 12px 12px 0;
+}
+.version-item .v-ver {
+    font-weight: 700;
+    color: #e0c893;
+    font-size: 1.05rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.version-item .v-time {
+    font-size: 0.88rem;
+    color: #b3a995;
+    font-weight: 400;
+}
+.version-item .v-summary {
+    margin-top: 6px;
+    color: #e4d8c0;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+</style>
+</head>
+<body>
+
+<!-- 自定义背景层（独立最底层） -->
+<div id="bgLayer"></div>
+
+<div class="app-container" id="app">
+
+    <!-- 可编辑标题 + 版本号 + 版本记录按钮 -->
+    <div class="title-row">
+        <h1 id="mainTitle" class="editable-title">周常记录</h1>
+        <div class="title-meta">
+            <span class="version-tag" id="versionTag" title="当前版本号">V1.0.0.1</span>
+            <button class="btn version-btn" id="openVersionModalBtn" title="查看版本记录">📋 版本</button>
+        </div>
+    </div>
+
+    <!-- 顶部操作栏 -->
+    <div class="action-bar">
+        <button class="btn" id="addAccountBtn">➕ 添加账号</button>
+        <button class="btn" id="addDungeonBtn">➕ 添加副本</button>
+        <button class="btn reset-btn" id="resetDoneBtn">⟲ 重置</button>
+        <!-- 新增：插件按钮 -->
+        <button class="btn plugin-btn" id="openPluginMgrBtn">🧩 插件</button>
+        <!-- 新增：自定义背景图按钮（打开/删除 拆分：确认选图 = 打开文件，删除 = 独立按钮） -->
+        <button class="btn bg-btn" id="openBgBtn">🖼️ 背景图</button>
+        <button class="btn" id="delBgBtn" style="background:#5a2e2e;border-color:#a86a6a;color:#f8d6d6;" title="删除当前使用的背景图，恢复默认渐变">🗑️ 删除背景</button>
+        <input type="file" id="bgFileInput" accept="image/*" style="display:none;">
+        <!-- 上次重置时间 -->
+        <div class="last-reset-info">上次重置：<b id="lastResetText">—— 未重置过 ——</b></div>
+    </div>
+
+    <!-- 表格上方工具条：靠左侧显示详情权限切换按钮 -->
+    <div class="table-toolbar">
+        <button class="toggle-eye-btn active" id="toggleEyeBtn" title="切换账号详情弹窗的内容显示权限">
+            <span id="toggleEyeIcon">👁</span>
+            <span id="toggleEyeText">当前显示账号</span>
+        </button>
+    </div>
+
+    <!-- 表格主体 -->
+    <div id="tableWrapper" class="table-wrapper"></div>
+
+    <!-- 插件栏（表格下方） -->
+    <div id="pluginBar" class="plugin-bar"></div>
+
+    <!-- 二次确认弹窗 -->
+    <div id="confirmModal" class="modal-overlay hidden">
+        <div class="modal-content" id="confirmModalBox">
+            <p id="modalMessage">确认删除？</p>
+            <div class="modal-actions">
+                <button class="modal-btn" id="modalCancel">取消</button>
+                <button class="modal-btn confirm" id="modalConfirm">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 柱状图弹窗 -->
+    <div id="chartModal" class="modal-overlay hidden">
+        <div class="modal-chart-content" id="chartModalBox">
+            <h3 id="chartTitle">本周副本完成率</h3>
+            <canvas id="barChartCanvas" width="760" height="420"></canvas>
+            <br>
+            <button class="modal-chart-close" id="chartCloseBtn">关闭</button>
+        </div>
+    </div>
+
+    <!-- 插件勾选弹窗（支持拖动手柄排序） -->
+    <div id="pluginMgrModal" class="modal-overlay hidden">
+        <div class="modal-list-content" id="pluginMgrBox">
+            <h3>🧩 插件管理</h3>
+            <div id="pluginOptionList" class="plugin-list"></div>
+            <div class="modal-actions">
+                <button class="modal-btn" id="pluginMgrClose">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 每周记录 第1层：周期列表 -->
+    <div id="weeklyModal" class="modal-overlay hidden">
+        <div class="modal-list-content" style="width: min(720px,94vw); max-height: 82vh;">
+            <h3 id="weeklyModalTitle">📆 每周记录</h3>
+            <div id="weeklyCycleGrid" class="weekly-cycle-grid"></div>
+            <div class="modal-actions">
+                <button class="modal-btn" id="weeklyModalClose">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 版本记录弹窗 -->
+    <div id="versionModal" class="modal-overlay hidden">
+        <div class="modal-list-content" style="width: min(620px,94vw); max-height: 82vh;">
+            <h3>📋 版本记录</h3>
+            <div id="versionList" class="version-list"></div>
+            <div class="modal-actions">
+                <button class="modal-btn" id="versionModalClose">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 账号详情弹窗（4 字段实时保存；睁眼=全显 / 闭眼=遮罩账号/密码/二级密码，备注仍然显示；取消"失焦返回"，仅点关闭 / Esc / 遮罩关闭） -->
+    <div id="accDetailModal" class="modal-overlay hidden">
+        <div class="modal-content" style="text-align:left;">
+            <div class="acc-detail-form" id="accDetailForm">
+                <div class="adf-title-row">
+                    <h3 id="accDetailTitle">账号详情</h3>
+                    <button class="adf-copy-btn" id="accDetailCopyBtn" type="button" title="复制账号到剪贴板">📋 复制</button>
+                </div>
+                <div class="adf-row">
+                    <label class="adf-lbl" for="accDetailAccount">账号：</label>
+                    <input class="adf-input adf-w-15" id="accDetailAccount" type="text" autocomplete="off" spellcheck="false" placeholder="">
+                </div>
+                <div class="adf-row">
+                    <label class="adf-lbl" for="accDetailPassword">密码：</label>
+                    <input class="adf-input adf-w-15" id="accDetailPassword" type="text" autocomplete="off" spellcheck="false" placeholder="">
+                </div>
+                <div class="adf-row">
+                    <label class="adf-lbl" for="accDetailPin2">二级密码：</label>
+                    <input class="adf-input adf-w-10" id="accDetailPin2" type="text" autocomplete="off" spellcheck="false" placeholder="">
+                </div>
+                <div class="adf-row">
+                    <label class="adf-lbl" for="accDetailNote">账号备注：</label>
+                    <textarea class="adf-textarea" id="accDetailNote" placeholder="" spellcheck="false"></textarea>
+                </div>
+                <div class="modal-actions" style="justify-content:center; padding-top:6px;">
+                    <button class="modal-btn adf-close-btn" id="accDetailCloseBtn" type="button">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+(function() {
+/* ============================================================
+ * 【小白提示】关键配置
+ *  TITLE_DEFAULT : 默认标题
+ *  WEEK_CYCLE    : 周周期分界（默认周三 09:00）
+ *  ED_MAX        : ED 上限
+ * ============================================================ */
+const TITLE_DEFAULT = '周常记录';
+const WEEK_CYCLE = { weekDay: 3, hour: 9, minute: 0 }; // 周三 09:00
+const ED_MAX = 700;
+const STORAGE_KEY = 'AbyssWeeklyTracker';
+
+/* 版本号 & 变更日志（每次发布新增一项，时间：北京时间，精确到分）
+   后续修改只需在数组开头 push 新项即可，弹窗自动从新到旧显示
+   【版本号更新规则】（用户没指定版本号时按此自动计算；用户在命令里写 "X.X.X.X 同步版本" 则强制用指定号覆盖）
+     第一位：大更新（用户提到关键词才动）
+     第二位：逻辑更新（用户提到关键词才动）
+     第三位：同步版本 后 +1
+     第四位：未同步版本时的修复/优化迭代 +1                       */
+// 当前北京时间 ISO（新增版本时在控制台调用 bjtNowISO() 获取）
+function bjtNowISO() {
+    return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 16) + ':00+08:00';
+}
+const APP_VERSION = 'V1.0.3.1';
+const VERSION_CHANGELOG = [
+    {
+        version: 'V1.0.3.1',
+        bjTimeISO: '2026-08-27T05:15:00+08:00',
+        summary:
+`详情按钮与删除按钮拉开距离避免重叠
+账号列收紧宽度适配 6 汉字账号名`
+    },
+    {
+        version: 'V1.0.3.0',
+        bjTimeISO: '2026-08-27T05:09:00+08:00',
+        summary:
+`删除最右详情列，详情按钮移到账号名列最右侧
+账号名列同一行整合：拖动/复制/账号名/详情四控件
+详情按钮改为悬浮提示，点击打开详情弹窗
+睁眼/闭眼按钮移到表格上方靠左
+按钮文案改为当前显示账号/当前已隐藏`
+    },
+    {
+        version: 'V1.0.2.2',
+        bjTimeISO: '2026-08-27T05:02:00+08:00',
+        summary:
+`版本记录弹窗高度限制不超过表格+插件，超出滚动
+详情列缩窄精简为"详情"文字
+插件系统补充模块化注释及新增插件步骤说明`
+    },
+    {
+        version: 'V1.0.2.1',
+        bjTimeISO: '2026-08-27T04:55:00+08:00',
+        summary:
+`账号详情按钮隐藏账号值
+详情弹窗取消失焦返回，关闭按钮略放大
+复制按钮和备注输入框缩短紧凑化
+清空所有输入框默认提示文字
+精简全部历史版本记录文案
+重构版本号规则：同步版本改第3位，修复优化改第4位`
+    },
+    {
+        version: 'V1.0.2.0',
+        bjTimeISO: '2026-08-27T04:23:00+08:00',
+        summary:
+`取消账号密码切换按钮改为睁眼/闭眼切换
+表格新增账号详情按钮及弹窗
+账号详情四字段实时保存
+复制账号改为复制详情账号字段
+兼容旧账号数据自动迁移`
+    },
+    {
+        version: 'V1.0.1.0',
+        bjTimeISO: '2026-08-26T20:41:00+08:00',
+        summary:
+`修复每周记录按钮样式
+修复插件管理拖拽排序问题
+精简UI括号提示文案
+新增版本号显示及版本记录弹窗
+新增导出导入数据插件
+修复两层弹窗覆盖问题
+账号密码列固定居中显示
+插件拖拽添加动画并限制弹窗内
+新增每周记录插件`
+    },
+    {
+        version: 'V1.0.0.0',
+        bjTimeISO: '2026-08-26T00:43:00+08:00',
+        summary: '基础版本'
+    }
+];
+
+/* 插件栏 DOM 内按钮事件：openChartBtn / rate-btn / rateInput / rateResult
+   多次调用先卸载旧监听，避免重建 DOM 后重复触发
+   声明放在 IIFE 外层，保证 init 首次执行前已完成初始化
+*/
+var _pluginBarEventHandles = [];
+function _on(el, evt, fn, opts) {
+    if (!el) return;
+    el.addEventListener(evt, fn, opts);
+    _pluginBarEventHandles.push({ el: el, evt: evt, fn: fn, opts: opts });
+}
+function bindPluginBarEvents() {
+    for (var i = 0; i < _pluginBarEventHandles.length; i++) {
+        var h = _pluginBarEventHandles[i];
+        try { h.el.removeEventListener(h.evt, h.fn, h.opts); } catch(e) {}
+    }
+    _pluginBarEventHandles.length = 0;
+    var openChartBtn = document.getElementById('openChartBtn');
+    if (openChartBtn) _on(openChartBtn, 'click', openChartModal);
+    document.querySelectorAll('.rate-btn').forEach(function(btn) {
+        _on(btn, 'click', function(e) {
+            e.stopPropagation();
+            var step = parseFloat(btn.dataset.step);
+            if (isNaN(step)) return;
+            var input = document.getElementById('edRateInput');
+            var val = parseFloat(input.value); if (isNaN(val)) val = 0;
+            val = Math.max(0, Math.round((val + step) * 1000) / 1000);
+            input.value = val; appData.edRate = val; saveData(); renderPluginBar();
+        });
+    });
+    var rateInput = document.getElementById('edRateInput');
+    if (rateInput) {
+        _on(rateInput, 'change', function() {
+            var v = parseFloat(rateInput.value); if (isNaN(v) || v < 0) v = 0;
+            rateInput.value = v; appData.edRate = v; saveData(); renderPluginBar();
+        });
+        _on(rateInput, 'input', function() {
+            var v = parseFloat(rateInput.value); if (isNaN(v) || v < 0) return;
+            appData.edRate = v; saveData(); renderPluginBar();
+        });
+    }
+    var edRateResult = document.getElementById('edRateResult');
+    if (edRateResult) {
+        _on(edRateResult, 'click', function handler() {
+            var totalED = getProgressStats().totalED;
+            var initial = (totalED * appData.edRate).toFixed(2);
+            startInlineEdit(edRateResult, {
+                initialValue: initial, type: 'number', align: 'center', min: 0,
+                validator: function(v) { var n = parseFloat(v); return (isNaN(n) || n < 0) ? 0 : n; },
+                onSave: function(n) {
+                    var totalED2 = getProgressStats().totalED;
+                    appData.edRate = totalED2 > 0 ? Math.round(n / totalED2 * 1000) / 1000 : 0;
+                    saveData();
+                },
+                afterFinish: function() { renderPluginBar(); }
+            });
+        });
+    }
+}
+
+/* ============================================================================
+ *  【插件系统 · 模块化现状说明】
+ *  当前版本是"半模块化"——不是完全即插即用的插件机制，新增插件需要同步改 4 个位置。
+ *  如果以后要做成完全模块化（AI 只改 PLUGIN_REGISTRY 一处就能加插件），
+ *  喊一下我，我会把每个插件的 render(el)/bind()/onSave()/onLoad() 挂回注册表，
+ *  并把下面 buildPluginBarDOM 的 if/else 分派、bindPluginBarEvents 的分支分派
+ *  统一改成注册表遍历回调，做到真正的"一处注册、自动生成、自动绑定"。
+ *
+ *  ---------------------------
+ *  【给其他 AI：如何新增一个插件（在未重构前按下面 4 步硬编码新增即可）】
+ *  ---------------------------
+ *  Step 1 — 在下面 `PLUGIN_REGISTRY` 数组里 push 一项：
+ *           { id:'你的插件唯一ID', name:'按钮/卡片上方标题', desc:'一句话简述功能给插件列表tooltip使用', defaultEnabled:true }
+ *         * 注意 id 必须唯一，不要跟现有 progressRate / edStat / weeklyRecord / impExp 冲突。
+ *
+ *  Step 2 — CSS：在本文件 <style> 区找"插件栏/插件1/插件2/..."对应的位置（或任意靠后
+ *         的 .plugin-xxx 类区域），为你的插件写 .plugin-你的id-btn / .plugin-你的id-card
+ *         等自定义样式。通用类名有：.plugin-card / .plugin-title / .plugin-simple-btn
+ *         （方形按钮）、.impexp-square-btn（方形）、.impexp-rect-btn（长方形）——
+ *         若样式不特殊，直接复用 .plugin-simple-btn 即可。
+ *
+ *  Step 3 — HTML 渲染：去 `buildPluginBarDOM()` 函数，在 `else if (plug.id === 'impExp')`
+ *         分支之后、`else if (plug.id === '_VER_PLACEHOLDER_')` 之前新增：
+ *             } else if (plug.id === '你的插件唯一ID') {
+ *                 card.innerHTML = `<button class="plugin-simple-btn" id="你的插件唯一ID_btn">
+ *                                      🎯 按钮显示文字
+ *                                   </button>`;
+ *             }
+ *         然后在 buildPluginBarDOM 末尾（bindImpExpEvents 前后）加事件绑定：
+ *             const myBtn = document.getElementById('你的插件唯一ID_btn');
+ *             if (myBtn) myBtn.addEventListener('click', 你的处理函数名);
+ *         如果你的插件需要展示更复杂 DOM（不是单个按钮），把 HTML 写到 card.innerHTML 里即可，
+ *         插件栏已固定在两列 grid 内，宽度自适应。
+ *
+ *  Step 4 — 实时刷新 / 开关与排序：
+ *         · 你需要根据数据刷新 UI 时，调用 renderPluginBar() 会统一刷新当前页所有已
+ *           开启插件的显示（启用/隐藏由 appData.enabledPlugins[id] 控制，自动显隐）。
+ *         · 插件栏的"显示顺序"由 appData.pluginOrder 控制，插件管理弹窗拖拽后会
+ *           自动保存 & 重排 getOrderedPluginRegistry()，不需要你手动处理。
+ *         · 如果你要持久化数据，把字段加到 `getDefaultData()` 返回对象里（类似
+ *           weeklyRecords），同时在 saveData/loadData/normalize 三处做对应兼容；
+ *           若只是临时 UI 状态，放普通 let 变量就行。
+ *         · 若你的插件含弹窗，记得把弹窗遮罩加到 Esc 处理栈（init() 里 Esc 分支），
+ *           并用新的 z-index 层（比 1080/1100/1200/1300 大）避免被其他弹窗盖住。
+ *         · 若你的插件在"重置时要做事"，去 handleReset() 里对相应重置回调函数追加调用。
+ * ============================================================================ */
+/* ---------- 插件注册表：后续新增"新增插件"只需加一项 ---------- */
+const PLUGIN_REGISTRY = [
+    {
+        id: 'progressRate',
+        name: '本周完成率',
+        desc: '显示完成率百分比，点击展开柱状图',
+        defaultEnabled: true
+    },
+    {
+        id: 'edStat',
+        name: '总ED统计',
+        desc: '显示ED总计与ED比例控制栏',
+        defaultEnabled: true
+    },
+    {
+        id: 'weeklyRecord',
+        name: '每周记录',
+        desc: '重置时记录周期完成率，点击查看历史周柱状图',
+        defaultEnabled: true
+    },
+    {
+        id: 'impExp',
+        name: '导出导入数据',
+        desc: '导出 / 导入 / 部分导入',
+        defaultEnabled: true
+    }
+];
+
+/* ============================================================
+ *  每周记录（历史快照 & 两层弹窗）
+ *  每个周期快照：{ cycleStartISO, cycleEndISO, dungeons, dungeonDoneCounts, accountCount, pct, capturedAt }
+ *  - cycleStartISO：该周期起始（周三 09:00）
+ *  - 每次重置：写入对应的"周期"数据，同周期内多次重置覆盖
+ *  - 最多 10 条，超过则删除最旧
+ * ============================================================ */
+const WEEKLY_HISTORY_MAX = 10;
+function getCycleEnd(startDate) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + 7);
+    d.setSeconds(d.getSeconds() - 1);
+    return d;
+}
+function formatCycleName(startDate) {
+    const s = new Date(startDate);
+    const e = getCycleEnd(s);
+    const pad = (n) => (n < 10 ? '0' + n : '' + n);
+    // 周期2026.8.26~2026.9.2（去掉月份/日期前导0，保持和用户需求一致的格式）
+    return `周期${s.getFullYear()}.${s.getMonth()+1}.${s.getDate()}~${e.getFullYear()}.${e.getMonth()+1}.${e.getDate()}`;
+}
+function makeCycleKey(startDate) {
+    // 以周起始 00:00 UTC-like 本地日戳字符串作为去重 key（不丢失秒级在同一天就不会产生多条）
+    const s = new Date(startDate);
+    return `${s.getFullYear()}-${s.getMonth()+1}-${s.getDate()}`;
+}
+function snapshotCurrentWeek() {
+    const stats = getProgressStats(); // {pct, totalValid, done, totalED}
+    const doneCounts = [];
+    const N = appData.dungeons.length;
+    const M = appData.accounts.length;
+    for (let d = 0; d < N; d++) {
+        let c = 0;
+        for (let a = 0; a < M; a++) {
+            if ((appData.states[a] && appData.states[a][d]) === 'done') c++;
+        }
+        doneCounts.push(c);
+    }
+    return {
+        dungeons: appData.dungeons.slice(),
+        dungeonDoneCounts: doneCounts,
+        accountCount: M,
+        totalValid: stats.totalValid,
+        done: stats.done,
+        pct: stats.pct
+    };
+}
+/**
+ * 重置时写入每周记录：
+ * 1) 每个"周期"只保存 1 条（同周期多次重置覆盖）。
+ * 2) 边界规则：如果重置发生在"新周期开始后的 24 小时内"，
+ *    且当前 weeklyRecords 内没有"上一个周期"的记录，则把这次快照写入"上一个周期"；
+ *    若上一个周期已有记录，则写入"当前周期"。
+ * 3) 超过 10 条 → 按 cycleStart 升序删最旧。
+ */
+function recordWeeklyOnReset() {
+    const nowTs = Date.now();
+    const curStart = getCycleStart(nowTs); // 当前周期起始
+    const curStartTs = curStart.getTime();
+    const prevStartTs = curStartTs - 7 * 24 * 3600 * 1000;
+    const inFirst24h = (nowTs - curStartTs) <= 24 * 3600 * 1000;
+
+    if (!Array.isArray(appData.weeklyRecords)) appData.weeklyRecords = [];
+    const list = appData.weeklyRecords;
+
+    // 判断上一个周期是否已有记录
+    const hasPrev = list.some(r => Math.abs(new Date(r.cycleStartISO).getTime() - prevStartTs) < 60000);
+
+    // 决定写入哪个周期
+    let targetStartTs;
+    if (inFirst24h && !hasPrev) targetStartTs = prevStartTs;
+    else targetStartTs = curStartTs;
+
+    const targetKey = makeCycleKey(targetStartTs);
+    const snap = snapshotCurrentWeek();
+    const record = {
+        cycleKey: targetKey,
+        cycleStartISO: new Date(targetStartTs).toISOString(),
+        cycleEndISO: getCycleEnd(new Date(targetStartTs)).toISOString(),
+        dungeons: snap.dungeons,
+        dungeonDoneCounts: snap.dungeonDoneCounts,
+        accountCount: snap.accountCount,
+        totalValid: snap.totalValid,
+        done: snap.done,
+        pct: snap.pct,
+        capturedAt: new Date(nowTs).toISOString()
+    };
+
+    const idx = list.findIndex(r => r.cycleKey === targetKey);
+    if (idx >= 0) list[idx] = record;
+    else list.push(record);
+
+    // 按 cycleStart 降序保留最新 10 条
+    list.sort((a, b) => new Date(b.cycleStartISO).getTime() - new Date(a.cycleStartISO).getTime());
+    if (list.length > WEEKLY_HISTORY_MAX) list.length = WEEKLY_HISTORY_MAX;
+
+    // 保存到 localStorage
+    saveData();
+}
+
+/* 根据 appData.pluginOrder 给 PLUGIN_REGISTRY 排序（阅读顺序：上→下 对应 左上→右上→左下→右下…）
+   新插件会自动补在最后，保存结果回 appData.pluginOrder */
+function getOrderedPluginRegistry() {
+    if (!appData) return PLUGIN_REGISTRY.slice();
+    const order = Array.isArray(appData.pluginOrder) ? appData.pluginOrder.slice() : [];
+    const allIds = PLUGIN_REGISTRY.map(p => p.id);
+    // 去重 & 丢掉不存在的 id
+    const seen = new Set();
+    const cleaned = [];
+    for (const id of order) {
+        if (allIds.indexOf(id) >= 0 && !seen.has(id)) { cleaned.push(id); seen.add(id); }
+    }
+    // 尾部补齐新加的插件
+    for (const id of allIds) {
+        if (!seen.has(id)) { cleaned.push(id); }
+    }
+    appData.pluginOrder = cleaned;
+    const map = PLUGIN_REGISTRY.reduce((m, p) => { m[p.id] = p; return m; }, {});
+    return cleaned.map(id => map[id]);
+}
+function swapPluginOrder(fromIndex, toIndex) {
+    const ordered = getOrderedPluginRegistry(); // 会修正 pluginOrder
+    const ids = ordered.map(p => p.id);
+    if (fromIndex < 0 || toIndex < 0 || fromIndex >= ids.length || toIndex >= ids.length) return false;
+    const [it] = ids.splice(fromIndex, 1);
+    ids.splice(toIndex, 0, it);
+    appData.pluginOrder = ids;
+    return true;
+}
+
+/* ---------- 全局数据模型 ---------- */
+let appData = null;
+function getDefaultData() {
+    return {
+        title: TITLE_DEFAULT,
+        accounts: [],
+        dungeons: [],
+        states: [],
+        edRate: 1.0,
+        lastResetTime: null,
+        eyesOpen: true,
+        enabledPlugins: PLUGIN_REGISTRY.reduce((o, p) => (o[p.id] = p.defaultEnabled, o), {}),
+        pluginOrder: PLUGIN_REGISTRY.map(p => p.id),
+        backgroundImage: null,
+        weeklyRecords: []
+    };
+}
+/* 旧版本数据 → 新版本字段迁移：
+ *  旧字段：accountNumber(账号) / password / showMode / ...
+ *  新字段：account / password / pin2(二级密码) / accNote(账号备注) / eyesOpen(显隐开关)
+ */
+function normalizeAccountObject(a) {
+    if (!a || typeof a !== 'object') a = {};
+    const newAcc = {
+        name: a.name ? String(a.name) : '未命名账号',
+        // note：保留为副本备注（就是表格的备注列），不要和 accNote 混淆
+        note: ('note' in a) ? String(a.note || '') : '',
+        ed: typeof a.ed === 'number' ? a.ed : (parseInt(a.ed, 10) || 0),
+        // 账号（优先用新字段 account，否则回退旧字段 accountNumber，否则空）
+        account: (a.account && typeof a.account === 'string') ? a.account : (a.accountNumber ? String(a.accountNumber) : ''),
+        password: ('password' in a) ? String(a.password || '') : '',
+        pin2: ('pin2' in a) ? String(a.pin2 || '') : '',
+        // 账号详情里单独的"账号备注"（独立于表格备注列）
+        accNote: ('accNote' in a) ? String(a.accNote || '') : ''
+    };
+    return newAcc;
+}
+
+/* ---------- 数据加载/保存 ---------- */
+function loadData() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && Array.isArray(parsed.accounts) && Array.isArray(parsed.dungeons) && Array.isArray(parsed.states)) {
+                const def = getDefaultData();
+                appData = Object.assign(def, parsed);
+                appData.accounts = parsed.accounts.map(normalizeAccountObject);
+                if (!Array.isArray(appData.states)) appData.states = [];
+                if (typeof appData.edRate !== 'number' || isNaN(appData.edRate)) appData.edRate = 1.0;
+                if (typeof appData.lastResetTime !== 'string') appData.lastResetTime = null;
+                // showMode 是旧字段（账号/密码切换），新版本用 eyesOpen 控制详情显隐；有值就迁移成 eyesOpen 默认 true
+                if (typeof appData.eyesOpen !== 'boolean') appData.eyesOpen = true;
+                if (!appData.enabledPlugins || typeof appData.enabledPlugins !== 'object') {
+                    appData.enabledPlugins = PLUGIN_REGISTRY.reduce((o, p) => (o[p.id] = p.defaultEnabled, o), {});
+                } else {
+                    PLUGIN_REGISTRY.forEach(p => {
+                        if (typeof appData.enabledPlugins[p.id] !== 'boolean') {
+                            appData.enabledPlugins[p.id] = p.defaultEnabled;
+                        }
+                    });
+                }
+                // pluginOrder：规整（丢无效 id + 补新增插件 id）
+                if (!Array.isArray(appData.pluginOrder)) {
+                    appData.pluginOrder = PLUGIN_REGISTRY.map(p => p.id);
+                } else {
+                    const all = PLUGIN_REGISTRY.map(p => p.id);
+                    const seen = new Set(); const ok = [];
+                    appData.pluginOrder.forEach(id => {
+                        if (all.indexOf(id) >= 0 && !seen.has(id)) { ok.push(id); seen.add(id); }
+                    });
+                    all.forEach(id => { if (!seen.has(id)) ok.push(id); });
+                    appData.pluginOrder = ok;
+                }
+                if (typeof appData.backgroundImage !== 'string') appData.backgroundImage = null;
+                if (!Array.isArray(appData.weeklyRecords)) {
+                    appData.weeklyRecords = [];
+                } else {
+                    // 丢掉格式不合法项 + 维持最多 10 条 + 按 cycleStartISO 排序从新到旧
+                    appData.weeklyRecords = appData.weeklyRecords
+                        .filter(r => r && typeof r.cycleStartISO === 'string' && Array.isArray(r.dungeonDoneCounts))
+                        .sort((a, b) => new Date(b.cycleStartISO).getTime() - new Date(a.cycleStartISO).getTime())
+                        .slice(0, WEEKLY_HISTORY_MAX);
+                }
+                normalizeStatesSize();
+                return;
+            }
+        }
+    } catch (e) { /* ignore */ }
+    appData = getDefaultData();
+}
+function saveData() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch(e) {}
+}
+
+/* ---------- states 规整 ---------- */
+function normalizeStatesSize() {
+    const M = appData.accounts.length;
+    const N = appData.dungeons.length;
+    if (appData.states.length < M) {
+        for (let i = appData.states.length; i < M; i++) appData.states.push(new Array(N).fill('todo'));
+    }
+    for (let i = 0; i < M; i++) {
+        if (!Array.isArray(appData.states[i])) appData.states[i] = [];
+        while (appData.states[i].length < N) appData.states[i].push('todo');
+        if (appData.states[i].length > N) appData.states[i].length = N;
+    }
+    if (appData.states.length > M) appData.states.length = M;
+}
+
+/* ---------- 周周期工具 ---------- */
+function getCycleStart(date) {
+    const d = new Date(date || Date.now());
+    const today = new Date(d.getFullYear(), d.getMonth(), d.getDate(), WEEK_CYCLE.hour, WEEK_CYCLE.minute, 0, 0);
+    let day = today.getDay();
+    let diff = day - WEEK_CYCLE.weekDay;
+    if (diff < 0) diff += 7;
+    let start = new Date(today);
+    start.setDate(today.getDate() - diff);
+    if (start.getTime() > d.getTime()) start.setDate(start.getDate() - 7);
+    return start;
+}
+
+/* ---------- 格式化上次重置时间 ---------- */
+function formatLastReset(isoStr) {
+    if (!isoStr) return '—— 未重置过 ——';
+    try {
+        const d = new Date(isoStr);
+        if (isNaN(d.getTime())) return '—— 未重置过 ——';
+        const pad = (n) => (n < 10 ? '0' + n : '' + n);
+        const weekdays = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())} ${weekdays[d.getDay()]}`;
+    } catch(e) { return '—— 未重置过 ——'; }
+}
+
+/* ---------- HTML 转义 ---------- */
+function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/[&<>"]/g, c => (c==='&'?'&amp;':c==='<'?'&lt;':c==='>'?'&gt;':'&quot;'));
+}
+
+/* ---------- 当前编辑框管理 ---------- */
+let activeEditor = null;
+function finishEditing() {
+    if (activeEditor && typeof activeEditor.commit === 'function') {
+        activeEditor.commit(true);
+        activeEditor = null;
+    } else if (typeof activeEditor === 'function') {
+        activeEditor();
+        activeEditor = null;
+    }
+}
+
+/* ============================================================
+ *  渲染：整表
+ * ============================================================ */
+function renderTable() {
+    finishEditing();
+    const wrapper = document.getElementById('tableWrapper');
+    const accounts = appData.accounts;
+    const dungeons = appData.dungeons;
+    const states = appData.states;
+    normalizeStatesSize();
+
+    let html = '<table><thead><tr>';
+    // 第 0 列：账号（一行内：拖动把手 + 复制 + 账号名 + 详情 小按钮）—— 列宽收紧到适配约 6 个汉字账号名
+    html += '<th style="width:180px; min-width:170px; max-width:200px;"><div class="account-header-cell" style="padding:4px;justify-content:center;">账号</div></th>';
+    dungeons.forEach((name, idx) => {
+        html += `<th style="width:100px;" data-dungeon-index="${idx}">`;
+        html += `<div class="th-inner">`;
+        html += `<span class="drag-handle-col" title="拖动左右调整副本顺序（限制在ED列左侧）" data-drag-col-handle="${idx}">&#x270B;&#xFE0E;</span>`;
+        html += `<span class="dungeon-name" data-dungeon-idx="${idx}">${escapeHtml(name)}</span>`;
+        html += `<span class="delete-btn" data-delete-type="dungeon" data-delete-index="${idx}">✕</span>`;
+        html += `</div></th>`;
+    });
+    html += '<th style="width:130px;">ED</th>';
+    html += '<th style="width:160px;">备注</th>';
+    // 横轴列顺序：账号 → 副本 → ED → 备注（已删除最右的独立详情列）
+    html += '</tr></thead><tbody>';
+
+    accounts.forEach((acc, accIdx) => {
+        html += `<tr data-account-row="${accIdx}">`;
+        html += `<td class="account-header-cell" style="position:relative;">`;
+        html += `<span class="drag-handle-row" title="拖动上下移动账号（限制在表格范围内）" data-drag-row-handle="${accIdx}">&#x270B;&#xFE0E;</span>`;
+        html += `<span class="copy-number-btn-left" title="复制账号" data-copy-acc="${accIdx}">📋</span>`;
+        html += `<span class="account-name" data-account-idx="${accIdx}">${escapeHtml(acc.name)}</span>`;
+        // 详情按钮：放在账号名列最右侧，小icon；鼠标悬停显示「账号详情」
+        const accFilled = !!(acc.account && acc.account.length);
+        const emptyCls = accFilled ? '' : ' acc-empty';
+        html += `<button type="button" class="acc-inline-detail-btn account-detail-btn${emptyCls}" data-open-acc-detail="${accIdx}" title="账号详情">🗒</button>`;
+        html += `<span class="delete-btn" data-delete-type="account" data-delete-index="${accIdx}">✕</span>`;
+        html += `</td>`;
+
+        for (let dIdx = 0; dIdx < dungeons.length; dIdx++) {
+            const state = states[accIdx][dIdx] || 'todo';
+            let cls = 'status-todo';
+            let icon = '○';
+            if (state === 'done') { cls = 'status-done'; icon = '✓'; }
+            else if (state === 'skipped') { cls = 'status-skipped'; icon = '✗'; }
+            html += `<td class="status-cell ${cls}" data-account="${accIdx}" data-dungeon="${dIdx}" data-dungeon-col="${dIdx}">${icon}</td>`;
+        }
+
+        const edDisabled = acc.ed >= ED_MAX ? 'disabled' : '';
+        html += `<td class="ed-cell" data-ed-account="${accIdx}">`;
+        html += `<button class="ed-btn ed-minus" data-ed-acc="${accIdx}" data-ed-op="minus">−</button>`;
+        html += `<span class="ed-value" data-ed-acc="${accIdx}">${acc.ed}</span>`;
+        html += `<button class="ed-btn ed-plus" data-ed-acc="${accIdx}" data-ed-op="plus" ${edDisabled ? 'disabled' : ''}>+</button>`;
+        html += `</td>`;
+
+        // 表格中的"备注列" = 副本备注（保持 acc.note 不变）
+        html += `<td class="note-cell" data-account-note="${accIdx}" title="${escapeHtml(acc.note || '')}">${escapeHtml(acc.note || '')}</td>`;
+
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    wrapper.innerHTML = html;
+
+    // 更新睁眼/闭眼按钮显示状态
+    const eyeBtn = document.getElementById('toggleEyeBtn');
+    const eyeIcon = document.getElementById('toggleEyeIcon');
+    const eyeText = document.getElementById('toggleEyeText');
+    const eyesOpen = appData.eyesOpen !== false;   // 默认：开启（睁眼详情可见）
+    if (eyeBtn) eyeBtn.classList.toggle('active', eyesOpen);
+    if (eyeIcon) eyeIcon.innerText = eyesOpen ? '👁' : '🙈';
+    if (eyeText) eyeText.innerText = eyesOpen ? '当前显示账号' : '当前已隐藏';
+    document.getElementById('lastResetText').innerText = formatLastReset(appData.lastResetTime);
+    document.getElementById('mainTitle').innerText = appData.title;
+}
+
+/* ============================================================
+ *  进度统计 & 插件栏渲染
+ * ============================================================ */
+function getProgressStats() {
+    const M = appData.accounts.length;
+    const N = appData.dungeons.length;
+    let totalValid = 0, done = 0;
+    for (let a = 0; a < M; a++) {
+        for (let d = 0; d < N; d++) {
+            const st = (appData.states[a] && appData.states[a][d]) || 'todo';
+            if (st === 'skipped') continue;
+            totalValid++;
+            if (st === 'done') done++;
+        }
+    }
+    const pct = totalValid ? Math.round(done / totalValid * 100) : 0;
+    const totalED = appData.accounts.reduce((s, a) => s + (Number(a.ed) || 0), 0);
+    return { pct, totalValid, done, totalED };
+}
+
+function drawProgressCircle(pct) {
+    const cv = document.getElementById('progressCircle');
+    if (!cv) return;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, 80, 80);
+    ctx.beginPath();
+    ctx.arc(40, 40, 32, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#3b434f'; ctx.lineWidth = 8; ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(40, 40, 32, -Math.PI/2, (pct/100)*2*Math.PI - Math.PI/2);
+    ctx.strokeStyle = '#bda46b'; ctx.lineWidth = 8; ctx.stroke();
+}
+
+function renderPluginBar() {
+    const stats = getProgressStats();
+    drawProgressCircle(stats.pct);
+    const pctSpan = document.getElementById('progressPercent');
+    if (pctSpan) pctSpan.innerText = stats.pct + '%';
+
+    // ED统计相关
+    const edEl = document.getElementById('edTotalDisplay');
+    if (edEl) edEl.innerHTML = `<span>ED</span> ${stats.totalED}`;
+    const rateInput = document.getElementById('edRateInput');
+    if (rateInput) rateInput.value = appData.edRate;
+    const resEl = document.getElementById('edRateResult');
+    if (resEl) resEl.innerText = (stats.totalED * appData.edRate).toFixed(2);
+
+    // 插件栏显示 / 隐藏控制（按 pluginOrder 顺序：第一=左上 / 第二=右上 / 第三=左…）
+    getOrderedPluginRegistry().forEach(plug => {
+        const card = document.getElementById('pluginCard_' + plug.id);
+        if (!card) return;
+        const enabled = !!appData.enabledPlugins[plug.id];
+        card.style.display = enabled ? '' : 'none';
+    });
+}
+
+/* 构建插件栏 DOM（首次初始化构建一次，之后只改显示；按 pluginOrder 渲染顺序保证阅读顺序） */
+function buildPluginBarDOM() {
+    const bar = document.getElementById('pluginBar');
+    bar.innerHTML = '';
+    getOrderedPluginRegistry().forEach(plug => {
+        const card = document.createElement('div');
+        card.id = 'pluginCard_' + plug.id;
+        card.className = 'plugin-card';
+        if (plug.id === 'progressRate') {
+            card.innerHTML = `
+                <button class="plugin-progress-btn" id="openChartBtn" title="点击查看本周各副本完成率柱状图">
+                    <div class="progress-circle-wrapper">
+                        <canvas id="progressCircle" width="80" height="80"></canvas>
+                        <span class="progress-percent" id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-btn-label">📊 本周完成率</div>
+                </button>`;
+        } else if (plug.id === 'edStat') {
+            card.innerHTML = `
+                <h4 class="plugin-title">总 ED 统计</h4>
+                <div class="ed-stat-top">
+                    <div class="ed-total" id="edTotalDisplay"><span>ED</span> 0</div>
+                </div>
+                <div class="ed-stat-bottom">
+                    <span class="rate-label">ED比例：</span>
+                    <div class="rate-controls">
+                        <button class="rate-btn" data-step="-1">-1</button>
+                        <button class="rate-btn" data-step="-0.1">-0.1</button>
+                        <input type="number" id="edRateInput" step="any" value="1.0">
+                        <button class="rate-btn" data-step="0.1">+0.1</button>
+                        <button class="rate-btn" data-step="1">+1</button>
+                    </div>
+                    <span class="rate-result">≈ <span id="edRateResult" title="单击可直接编辑，自动反算比例">0</span> R</span>
+                </div>`;
+        } else if (plug.id === 'weeklyRecord') {
+            card.innerHTML = `
+                <button class="plugin-simple-btn" id="openWeeklyBtn" title="点击查看每周记录">
+                    📆 每周记录
+                </button>`;
+        } else if (plug.id === 'impExp') {
+            // 导出导入数据插件：导出 / 导入（方形，同行），部分导入（长方形，第二行，稍小，居中）
+            card.innerHTML = `
+                <div class="impexp-card" id="impExpCard">
+                    <div class="impexp-row impexp-row-top">
+                        <button class="impexp-square-btn impexp-export" id="impExpExportBtn" title="导出当前表格数据到 .json 文件">
+                            📤 导出
+                        </button>
+                        <button class="impexp-square-btn impexp-import" id="impExpImportBtn" title="从文件导入并覆盖当前表格数据">
+                            📥 导入
+                        </button>
+                        <input type="file" id="impExpImportFile" accept="application/json,.json,text/plain" style="display:none;">
+                        <input type="file" id="impExpMergeFile" accept="application/json,.json,text/plain" style="display:none;">
+                    </div>
+                    <div class="impexp-row impexp-row-bottom">
+                        <button class="impexp-rect-btn" id="impExpMergeBtn" title="导入文件并覆盖当前数据（保留打叉格）">
+                            🧩 部分导入
+                        </button>
+                    </div>
+                </div>`;
+        } else if (plug.id === '_VER_PLACEHOLDER_') {
+            // 保留给将来插入更多插件占位：当前版本信息功能放在标题行右侧，不是插件栏
+        }
+        bar.appendChild(card);
+    });
+
+    const weeklyBtn = document.getElementById('openWeeklyBtn');
+    if (weeklyBtn) weeklyBtn.addEventListener('click', openWeeklyModal);
+    bindImpExpEvents();
+}
+
+/* ============================================================
+ *  柱状图
+ * ============================================================ */
+function renderDungeonBarChart(weeklyRecord) {
+    const canvas = document.getElementById('barChartCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // 支持历史周期快照（weeklyRecord）传入：优先用快照数据，否则取本周数据
+    let dungeons, doneCounts, totalAcc;
+    if (weeklyRecord && Array.isArray(weeklyRecord.dungeons) && Array.isArray(weeklyRecord.dungeonDoneCounts)) {
+        dungeons = weeklyRecord.dungeons;
+        doneCounts = weeklyRecord.dungeonDoneCounts;
+        totalAcc = Math.max(0, parseInt(weeklyRecord.accountCount, 10) || 0);
+    } else {
+        dungeons = appData.dungeons;
+        const N = dungeons.length;
+        doneCounts = [];
+        totalAcc = appData.accounts.length;
+        for (let i = 0; i < N; i++) {
+            let c = 0;
+            for (let a = 0; a < totalAcc; a++) {
+                if ((appData.states[a] && appData.states[a][i]) === 'done') c++;
+            }
+            doneCounts.push(c);
+        }
+    }
+    const N = dungeons.length;
+
+    const padL = 60, padR = 40, padT = 30, padB = 80;
+    const chartW = W - padL - padR;
+    const chartH = H - padT - padB;
+
+    ctx.fillStyle = '#1d2026';
+    ctx.fillRect(padL, padT, chartW, chartH);
+
+    const ySteps = Math.min(6, totalAcc || 1);
+    ctx.strokeStyle = '#2e333b';
+    ctx.fillStyle = '#a8a69d';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i <= ySteps; i++) {
+        const val = Math.round(i * totalAcc / ySteps);
+        const y = padT + chartH - (val / Math.max(totalAcc, 1)) * chartH;
+        ctx.beginPath();
+        ctx.moveTo(padL, y); ctx.lineTo(padL + chartW, y);
+        ctx.stroke();
+        ctx.fillText(String(val), padL - 6, y);
+    }
+
+    if (N === 0) {
+        ctx.fillStyle = '#a4a199';
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('暂无副本', W / 2, H / 2);
+        return;
+    }
+
+    const barGap = Math.min(20, Math.max(4, chartW / N * 0.2));
+    const barTotalW = (chartW - barGap * (N + 1)) / N;
+
+    for (let i = 0; i < N; i++) {
+        const doneCount = doneCounts[i] || 0;
+        const ratio = totalAcc === 0 ? 0 : doneCount / totalAcc;
+        const barH = ratio * chartH;
+        const x = padL + barGap + i * (barTotalW + barGap);
+        const y = padT + chartH - barH;
+        const grad = ctx.createLinearGradient(0, y, 0, padT + chartH);
+        grad.addColorStop(0, '#3fd684');
+        grad.addColorStop(1, '#1d4f3b');
+        ctx.fillStyle = grad;
+        const radius = Math.min(10, barTotalW / 3);
+        roundRect(ctx, x, y, barTotalW, barH, radius);
+        ctx.fill();
+        ctx.fillStyle = '#d8f1d9';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(String(doneCount), x + barTotalW / 2, y - 4);
+
+        ctx.save();
+        const labelX = x + barTotalW / 2;
+        const labelY = padT + chartH + 14;
+        ctx.translate(labelX, labelY);
+        if (N > 10) ctx.rotate(-Math.PI / 6);
+        ctx.fillStyle = '#bfb195';
+        ctx.font = '13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        let name = dungeons[i] || '';
+        if (name.length > 10) name = name.slice(0, 9) + '…';
+        ctx.fillText(name, 0, 0);
+        ctx.restore();
+    }
+
+    ctx.save();
+    ctx.fillStyle = '#b8b4a4';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.translate(16, padT + chartH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('完成次数', 0, 0);
+    ctx.restore();
+
+    ctx.fillStyle = '#d4c4a0';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('账号数：' + totalAcc, padL, H - 14);
+}
+function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
+/* ============================================================
+ *  通用：单击即进入内联编辑
+ * ============================================================ */
+function startInlineEdit(containerEl, opts) {
+    finishEditing();
+    if (!containerEl) return;
+    const pos = getComputedStyle(containerEl).position;
+    if (pos === 'static') containerEl.style.position = 'relative';
+
+    // 需求 2/3 修复：进入编辑时，隐藏原文容器的真实子内容（编辑框自身除外），
+    // 让输入框彻底盖住原位置，不会"和原文重叠露出字"
+    // （但必须保留容器高度，让位置不变——所以用 visibility 而非 display:none）
+    const savedVisibility = containerEl.style.visibility;
+    Array.prototype.forEach.call(containerEl.children || [], function(child) {
+        if (child && child.style) child.dataset._editOldVis = child.style.visibility;
+    });
+    // 不隐藏父容器（会让输入框也消失）；把直接文本/子节点都改 hidden：
+    // 简化方案：给容器加个 CSS class，让其"除 inline-edit-wrap 之外的文本+子元素"都隐藏
+    containerEl.classList.add('_editing-active');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'inline-edit-wrap' + (opts.align === 'left' ? ' left' : '');
+    const input = document.createElement('input');
+    input.type = opts.type || 'text';
+    input.value = (opts.initialValue === undefined || opts.initialValue === null) ? '' : String(opts.initialValue);
+    input.className = 'edit-input' + (opts.className ? ' ' + opts.className : '');
+    if (opts.min !== undefined) input.min = opts.min;
+    if (opts.max !== undefined) input.max = opts.max;
+    wrap.appendChild(input);
+    containerEl.appendChild(wrap);
+
+    const doFinish = (commit) => {
+        if (input.dataset.finished) return;
+        input.dataset.finished = '1';
+        let val = input.value;
+        try { input.remove(); } catch(e) {}
+        try { wrap.remove(); } catch(e) {}
+        // 恢复容器内原文的可见性
+        try {
+            containerEl.classList.remove('_editing-active');
+            containerEl.style.visibility = savedVisibility || '';
+            Array.prototype.forEach.call(containerEl.children || [], function(child) {
+                if (child && child.dataset && '_editOldVis' in child.dataset) {
+                    child.style.visibility = child.dataset._editOldVis;
+                    delete child.dataset._editOldVis;
+                }
+            });
+        } catch (_) {}
+        if (commit) {
+            let cleaned = val;
+            if (opts.validator) { try { cleaned = opts.validator(val); } catch(e) { cleaned = val; } }
+            if (opts.onSave) opts.onSave(cleaned);
+        } else if (opts.onCancel) {
+            opts.onCancel();
+        }
+        activeEditor = null;
+        if (opts.afterFinish) opts.afterFinish(commit);
+    };
+    activeEditor = { commit: doFinish };
+
+    input.addEventListener('blur', () => setTimeout(() => doFinish(true), 0));
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); doFinish(true); }
+        if (e.key === 'Escape') { doFinish(false); }
+    });
+
+    setTimeout(() => {
+        try {
+            input.focus();
+            if (input.type === 'number' && typeof input.setSelectionRange === 'function') {
+                try {
+                    const endPos = String(input.value).length;
+                    const p = Math.max(0, Math.floor(endPos / 2));
+                    input.setSelectionRange(p, p);
+                } catch(e) {}
+            } else if (typeof input.setSelectionRange === 'function') {
+                try { input.setSelectionRange(0, String(input.value).length); } catch(e) {}
+            }
+        } catch(e) {}
+    }, 0);
+}
+
+/* ============================================================
+ *  备注列：记事本式实时编辑（区别于 startInlineEdit 的失焦保存）
+ *  - 每次输入立即写回 appData 并 saveData（250ms debounce 合并连击）
+ *  - 失焦 / Enter = 完成并关闭；Esc = 放弃本次修改，恢复进入编辑前的原文
+ * ============================================================ */
+function startLiveNoteEdit(noteTd, accIdx) {
+    finishEditing();   // 先关闭上一个编辑器（如有）
+    const acc = appData.accounts[accIdx];
+    if (!acc) return;
+
+    // 隐藏原文（复用 _editing-active 机制，输入框原地覆盖）
+    noteTd.classList.add('_editing-active');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'inline-edit-wrap left';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = acc.note || '';
+    input.className = 'edit-input';
+    wrap.appendChild(input);
+    noteTd.appendChild(wrap);
+
+    const st = {
+        timer: null,
+        original: acc.note || '',
+        released: false
+    };
+
+    // 输入即存：只写数据，不重绘表格（重绘会销毁正在编辑的输入框）
+    const flushSave = () => {
+        if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+        if (st.released) return;
+        const a = appData.accounts[accIdx];
+        if (!a) return;
+        a.note = input.value;
+        noteTd.title = input.value;
+        saveData();
+    };
+
+    // 关闭编辑器并恢复单元格显示（不触发 renderTable，避免递归销毁）
+    const release = (commit) => {
+        if (st.released) return;
+        st.released = true;
+        if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+        const val = commit ? input.value : st.original;
+        const a = appData.accounts[accIdx];
+        if (a) { a.note = val; saveData(); }
+        try { input.remove(); } catch(e) {}
+        try { wrap.remove(); } catch(e) {}
+        noteTd.classList.remove('_editing-active');
+        noteTd.innerHTML = escapeHtml(val);
+        noteTd.title = val;
+        if (activeEditor === release) activeEditor = null;
+    };
+    // 注册到全局编辑器槽：renderTable/finishEditing 会以 commit=true 关闭本编辑器
+    activeEditor = release;
+
+    input.addEventListener('input', () => {
+        if (st.timer) clearTimeout(st.timer);
+        st.timer = setTimeout(flushSave, 250);
+    });
+    input.addEventListener('blur', () => setTimeout(() => release(true), 0));
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); release(true); }
+        if (e.key === 'Escape') { release(false); }
+    });
+
+    setTimeout(() => {
+        try {
+            input.focus();
+            if (typeof input.setSelectionRange === 'function') {
+                input.setSelectionRange(0, String(input.value).length);
+            }
+        } catch(e) {}
+    }, 0);
+}
+
+/* ============================================================
+ *  二次确认弹窗（失焦取消 + 遮罩取消 + Esc取消）
+ * ============================================================ */
+let confirmPending = null;
+function showConfirmDialog(message, onConfirm) {
+    const overlay = document.getElementById('confirmModal');
+    document.getElementById('modalMessage').innerText = message;
+    overlay.classList.remove('hidden');
+    confirmPending = { onConfirm };
+    overlay.onclick = (e) => { if (e.target === overlay) hideConfirm(false); };
+    setTimeout(() => { window.addEventListener('blur', hideConfirmOnBlur, { once: true }); }, 50);
+}
+function hideConfirmOnBlur() {
+    const overlay = document.getElementById('confirmModal');
+    if (!overlay.classList.contains('hidden')) hideConfirm(false);
+}
+function hideConfirm(isConfirm) {
+    const overlay = document.getElementById('confirmModal');
+    overlay.classList.add('hidden');
+    overlay.onclick = null;
+    const cb = confirmPending && confirmPending.onConfirm;
+    confirmPending = null;
+    if (isConfirm && cb) try { cb(); } catch(e) {}
+}
+
+/* ============================================================
+ *  柱状图弹窗
+ *  - 默认：本周副本完成率
+ *  - 可传入快照 record：{dungeons, dungeonDoneCounts, accountCount, pct, cycleStartISO}
+ *    → 渲染该历史周期的柱状图（用于每周记录第2层）
+ * ============================================================ */
+function openChartModal(weeklyRecord) {
+    const overlay = document.getElementById('chartModal');
+    const titleEl = document.getElementById('chartTitle');
+    if (weeklyRecord) {
+        const cycleName = formatCycleName(new Date(weeklyRecord.cycleStartISO));
+        titleEl.innerText = `${cycleName} 副本完成率`;
+        renderDungeonBarChart(weeklyRecord);
+    } else {
+        titleEl.innerText = '本周副本完成率';
+        renderDungeonBarChart();
+    }
+    overlay.classList.remove('hidden');
+    overlay.onclick = (e) => { if (e.target === overlay) closeChartModal(); };
+    setTimeout(() => { window.addEventListener('blur', closeChartOnBlur, { once: true }); }, 50);
+}
+function closeChartOnBlur() {
+    const overlay = document.getElementById('chartModal');
+    if (!overlay.classList.contains('hidden')) closeChartModal();
+}
+function closeChartModal() {
+    const overlay = document.getElementById('chartModal');
+    overlay.classList.add('hidden');
+    overlay.onclick = null;
+}
+
+/* ============================================================
+ *  每周记录 第1层：周期列表弹窗
+ *  - 从新到旧展示 appData.weeklyRecords（最多 10 条）
+ *  - 每行 2 个按钮：上方居中完成率%，下方居中周期名
+ *  - 点击周期按钮 → 调用 openChartModal(record) 打开该周柱状图（第2层）
+ *  - 遮罩点击 / 失焦 / Esc 均返回（关闭）
+ * ============================================================ */
+let _weeklyBlurHandlerInstalled = false;
+function closeWeeklyOnBlur() {
+    const overlay = document.getElementById('weeklyModal');
+    if (overlay && !overlay.classList.contains('hidden')) closeWeeklyModal();
+}
+function closeWeeklyModal() {
+    const overlay = document.getElementById('weeklyModal');
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+    overlay.onclick = null;
+}
+function openWeeklyModal() {
+    const overlay = document.getElementById('weeklyModal');
+    const grid = document.getElementById('weeklyCycleGrid');
+    overlay.classList.remove('hidden');
+    // 渲染周期按钮（从新到旧）
+    const list = Array.isArray(appData.weeklyRecords) ? appData.weeklyRecords.slice() : [];
+    list.sort((a, b) => new Date(b.cycleStartISO).getTime() - new Date(a.cycleStartISO).getTime());
+    if (list.length === 0) {
+        grid.innerHTML = '<div class="weekly-cycle-empty">暂无历史周期数据。完成一次重置后会自动记录该周期完成率快照。</div>';
+    } else {
+        grid.innerHTML = '';
+        list.forEach(record => {
+            const cycleName = formatCycleName(new Date(record.cycleStartISO));
+            const pct = (typeof record.pct === 'number') ? record.pct : 0;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'weekly-cycle-btn';
+            btn.title = '点击查看该周期副本完成率柱状图';
+            btn.innerHTML = `
+                <div class="weekly-cycle-percent">${pct}%</div>
+                <div class="weekly-cycle-name">${escapeHtml(cycleName)}</div>`;
+            btn.addEventListener('click', () => openChartModal(record));
+            grid.appendChild(btn);
+        });
+    }
+    // 绑定关闭
+    const closeBtn = document.getElementById('weeklyModalClose');
+    if (closeBtn) closeBtn.onclick = closeWeeklyModal;
+    // 遮罩点击关闭
+    overlay.onclick = (e) => { if (e.target === overlay) closeWeeklyModal(); };
+    // 失焦返回（和柱状图弹窗逻辑一致：50ms 后安装一次性 blur）
+    setTimeout(() => { window.addEventListener('blur', closeWeeklyOnBlur, { once: true }); }, 50);
+}
+
+/* ============================================================
+ *  版本记录弹窗：显示 VERSION_CHANGELOG（新→旧）
+ * ============================================================ */
+// 把 bjTimeISO（支持 +08:00）格式化为「YYYY-MM-DD HH:mm」北京时间字符串
+function formatBJTime(isoStr) {
+    try {
+        if (!isoStr) return '';
+        const d = new Date(isoStr);
+        if (isNaN(d.getTime())) return isoStr;
+        // 直接用 ISO 字符串 + 偏移反推北京时间（避免用户电脑时区不对）
+        let utcMs = d.getTime();
+        // 不管用户本地时区，+8h 后格式化得到北京时间
+        const bj = new Date(utcMs + 8 * 3600 * 1000);
+        const pad = (n) => String(n < 10 ? '0' + n : n);
+        // toISOString 给 UTC：正好就是东八区时间，因为我们手动 +8h
+        const iso = bj.toISOString();
+        const Y = iso.slice(0, 4);
+        const M = iso.slice(5, 7);
+        const D = iso.slice(8, 10);
+        const hh = iso.slice(11, 13);
+        const mm = iso.slice(14, 16);
+        return `${Y}-${M}-${D} ${hh}:${mm}`;
+    } catch (e) { return isoStr || ''; }
+}
+function closeVersionOnBlur() {
+    const overlay = document.getElementById('versionModal');
+    if (overlay && !overlay.classList.contains('hidden')) closeVersionModal();
+}
+function closeVersionModal() {
+    const overlay = document.getElementById('versionModal');
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+    overlay.onclick = null;
+}
+function openVersionModal() {
+    const overlay = document.getElementById('versionModal');
+    const listEl = document.getElementById('versionList');
+    listEl.innerHTML = '';
+    // 新→旧（按 bjTimeISO 降序，避免以后有人乱序）
+    const arr = (Array.isArray(VERSION_CHANGELOG) ? VERSION_CHANGELOG : []).slice();
+    arr.sort((a, b) => new Date(b.bjTimeISO).getTime() - new Date(a.bjTimeISO).getTime());
+    if (arr.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center;color:#9aa4b3;padding:24px 8px;">暂无版本记录。</div>';
+    } else {
+        arr.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'version-item';
+            div.innerHTML = `
+                <div class="v-ver">
+                    <span>${escapeHtml(item.version || '未知版本')}</span>
+                    <span class="v-time">${escapeHtml(formatBJTime(item.bjTimeISO))}</span>
+                </div>
+                <div class="v-summary">${escapeHtml(String(item.summary || ''))}</div>`;
+            listEl.appendChild(div);
+        });
+    }
+    overlay.classList.remove('hidden');
+    overlay.onclick = (e) => { if (e.target === overlay) closeVersionModal(); };
+
+    // 高度限制：版本记录弹窗的可见内容区最高不超过「当前表格高度 + 插件栏高度」，且再被 82vh 上限兜底，避免超出屏幕
+    try {
+        const tableH = (document.getElementById('tableWrapper') || {}).clientHeight || 500;
+        const pluginH = (document.getElementById('pluginBar') || {}).clientHeight || 200;
+        const contentMaxH = Math.max(240, tableH + pluginH);   // 表格+插件高，至少 240 避免太小
+        const vh82 = Math.round(window.innerHeight * 0.82);     // 视口 82% 兜底
+        // 弹窗头部 ≈ 70px（h3 + 上下间距 10+18），操作栏 ≈ 60px
+        const reservedForChrome = 140;
+        const listMaxH = Math.max(200, Math.min(contentMaxH, vh82) - reservedForChrome);
+        listEl.style.maxHeight = listMaxH + 'px';
+        listEl.style.overflowY = 'auto';
+    } catch (e) { /* 失败就走 CSS 默认 max-height:60vh */ }
+
+    setTimeout(() => { window.addEventListener('blur', closeVersionOnBlur, { once: true }); }, 50);
+}
+
+/* ============================================================
+ *  账号详情弹窗：4 字段实时保存 + 睁眼/闭眼遮罩
+ * ============================================================ */
+let _curDetailAccIdx = -1;
+let _detailSaveTimer = null;
+// 实时保存：输入字符后延迟一小段统一写入 storage（避免每个按键都刷 localStorage）
+function _scheduleDetailSave() {
+    if (_detailSaveTimer) clearTimeout(_detailSaveTimer);
+    _detailSaveTimer = setTimeout(() => {
+        if (_curDetailAccIdx < 0) return;
+        const acc = appData.accounts[_curDetailAccIdx];
+        if (!acc) return;
+        const a = document.getElementById('accDetailAccount');
+        const p = document.getElementById('accDetailPassword');
+        const p2 = document.getElementById('accDetailPin2');
+        const nt = document.getElementById('accDetailNote');
+        if (!a || !p || !p2 || !nt) return;
+        acc.account = a.value;
+        acc.password = p.value;
+        acc.pin2 = p2.value;
+        acc.accNote = nt.value;
+        saveData();
+        renderTable();  // 表格按钮上显示的账号文本要实时刷新
+    }, 220);
+}
+// textarea 高度自适应：根据文字内容计算需要的高度，至少保持 min-height 84px
+function _fitNoteHeight() {
+    const nt = document.getElementById('accDetailNote');
+    if (!nt) return;
+    nt.style.height = 'auto';
+    const need = nt.scrollHeight;
+    nt.style.height = (need < 84 ? 84 : need) + 'px';
+}
+// 根据 eyesOpen 更新输入框的遮罩。规则：睁眼=全部可编辑可看；闭眼=除"账号备注"外全部遮罩（标签仍显示，值区显示 •••••• 且禁用编辑）
+function _applyDetailEyes() {
+    const eyesOpen = appData.eyesOpen !== false;
+    const vels = ['accDetailAccount', 'accDetailPassword', 'accDetailPin2'];
+    vels.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (eyesOpen) {
+            el.classList.remove('adf-veil');
+            el.removeAttribute('readonly');
+            el.style.userSelect = '';
+            el.style.pointerEvents = '';
+        } else {
+            el.classList.add('adf-veil');
+            el.setAttribute('readonly', 'readonly');
+        }
+    });
+}
+function closeAccDetailModal() {
+    const overlay = document.getElementById('accDetailModal');
+    if (!overlay) return;
+    // 关闭前先把最后一次没 flush 的保存刷掉
+    if (_detailSaveTimer) { clearTimeout(_detailSaveTimer); _detailSaveTimer = null; _scheduleDetailSave(); }
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        overlay.onclick = null;
+        _curDetailAccIdx = -1;
+    }, 30);
+}
+function openAccDetailModal(accIdx) {
+    if (typeof accIdx !== 'number' || accIdx < 0) return;
+    const acc = appData.accounts[accIdx]; if (!acc) return;
+    _curDetailAccIdx = accIdx;
+    if (_detailSaveTimer) { clearTimeout(_detailSaveTimer); _detailSaveTimer = null; }
+
+    const titleEl = document.getElementById('accDetailTitle');
+    if (titleEl) titleEl.innerText = `${acc.name || '未命名账号'} 的账号详情`;
+
+    const a = document.getElementById('accDetailAccount');
+    const p = document.getElementById('accDetailPassword');
+    const p2 = document.getElementById('accDetailPin2');
+    const nt = document.getElementById('accDetailNote');
+    a.value = acc.account || '';
+    p.value = acc.password || '';
+    p2.value = acc.pin2 || '';
+    nt.value = acc.accNote || '';
+    _applyDetailEyes();
+    _fitNoteHeight();
+
+    const overlay = document.getElementById('accDetailModal');
+    overlay.classList.remove('hidden');
+    // 仅点击遮罩空白区 / 关闭按钮 / Esc 时关闭；已取消"失焦返回"
+    overlay.onclick = (e) => { if (e.target === overlay) closeAccDetailModal(); };
+}
+
+/* ============================================================
+ *  导出导入数据插件（3 按钮：导出 / 导入 / 部分导入）
+ *  - 导出内容：仅表格相关数据（不含插件开关/排序/背景/每周历史等"插件内容"）
+ *  - 完全导入：覆盖当前 accounts/dungeons/states/edRate/account/password/pin2/accNote 等表格字段
+ *  - 部分导入：覆盖时保留当前所有 "skipped"(✗) 状态单元格不变
+ * ============================================================ */
+// 导出：仅表格字段的纯数据
+function buildTableExportSnapshot() {
+    // 强制同步当前尺寸：保证导入后 accounts × dungeons 规模一致
+    normalizeStatesSize();
+    const snap = {
+        _magic: 'AbyssWeeklyTable',
+        _v: 2,
+        title: appData.title || TITLE_DEFAULT,
+        lastResetTime: typeof appData.lastResetTime === 'string' ? appData.lastResetTime : null,
+        edRate: typeof appData.edRate === 'number' ? appData.edRate : 1.0,
+        eyesOpen: appData.eyesOpen !== false,
+        accounts: appData.accounts.map(a => ({
+            name: a.name || '',
+            account: a.account || '',
+            password: a.password || '',
+            pin2: a.pin2 || '',
+            note: a.note || '',
+            accNote: a.accNote || '',
+            ed: typeof a.ed === 'number' ? a.ed : 0
+        })),
+        dungeons: appData.dungeons.slice(),
+        states: appData.states.map(row => row.slice())
+    };
+    return snap;
+}
+function validateTableSnapshot(obj) {
+    if (!obj || typeof obj !== 'object') return '文件内容不是有效对象。';
+    if (obj._magic !== 'AbyssWeeklyTable') return '文件不是周常记录导出格式。';
+    if (!Array.isArray(obj.accounts) || !Array.isArray(obj.dungeons) || !Array.isArray(obj.states)) {
+        return '文件缺失 accounts/dungeons/states 字段。';
+    }
+    const N = obj.dungeons.length;
+    for (let i = 0; i < obj.accounts.length; i++) {
+        const row = obj.states[i];
+        if (!Array.isArray(row) || row.length !== N) return `第 ${i + 1} 行 states 与副本数不匹配。`;
+    }
+    return null;
+}
+// 应用导入数据到 appData。merge = 部分导入（保留 skipped）
+function applyTableSnapshot(obj, merge) {
+    const err = validateTableSnapshot(obj);
+    if (err) { alert(err); return false; }
+    appData.title = obj.title || TITLE_DEFAULT;
+    appData.lastResetTime = typeof obj.lastResetTime === 'string' ? obj.lastResetTime : null;
+    appData.edRate = typeof obj.edRate === 'number' ? obj.edRate : 1.0;
+    appData.eyesOpen = obj.eyesOpen !== false;   // 未提供默认睁眼
+    appData.accounts = JSON.parse(JSON.stringify(obj.accounts)).map(normalizeAccountObject);
+    appData.dungeons = obj.dungeons.map(d => String(d || '未命名副本'));
+    const newStates = JSON.parse(JSON.stringify(obj.states));
+    if (merge) {
+        // 部分导入：当前 states 中 skipped 位置保持不动。如果旧数据规模比导入小/大，尽量按维度重叠区保留。
+        const oldA = appData.accounts.length;
+        const oldD = appData.dungeons.length;
+        const currStates = appData.states;   // 修改前的旧 states（旧规模旧副本）
+        // 先对旧 states 对应行和列，把已有的 skipped 标记迁移到 newStates（相同账号索引+相同副本索引位置）
+        // 注意：这里"保留打叉"的语义是——当前表格中凡是 ✗(skipped) 的 cell，在覆盖后依然是 skipped，对应(a,d)位置
+        // 但因为导入会替换账号和副本列表，我们只能以 index 对齐。这是可解释且可预测的行为。
+        const minA = Math.min(oldA, newStates.length);
+        const minD = Math.min(oldD, newStates[0] ? newStates[0].length : 0);
+        for (let a = 0; a < minA; a++) {
+            for (let d = 0; d < minD; d++) {
+                if (currStates[a] && currStates[a][d] === 'skipped') {
+                    newStates[a][d] = 'skipped';
+                }
+            }
+        }
+    }
+    appData.states = newStates;
+    normalizeStatesSize();
+    saveData();
+    return true;
+}
+// 下载：JSON 文件
+function exportTableAsFile() {
+    const snap = buildTableExportSnapshot();
+    const json = JSON.stringify(snap, null, 2);
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+    const now = new Date();
+    const pad = n => String(n < 10 ? '0' + n : n);
+    const name = `周常记录表格_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.json`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    alert('导出完成，文件名：' + name);
+}
+// 解析用户选择的文件（自动识别 JSON）
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(new Error('文件读取失败。'));
+            reader.readAsText(file, 'utf-8');
+        } catch (e) { reject(e); }
+    });
+}
+async function importTableFromFile(file, mode) {
+    if (!file) return;
+    try {
+        const text = await readFileAsText(file);
+        let obj = null;
+        try { obj = JSON.parse(text); }
+        catch (e) {
+            alert('文件解析失败：不是合法的 JSON 文本。');
+            return;
+        }
+        const ok = applyTableSnapshot(obj, mode === 'merge');
+        if (!ok) return;
+        showConfirmDialog(
+            mode === 'merge' ? '部分导入成功。是否立即刷新页面以确保数据正确呈现？'
+                             : '导入成功。是否立即刷新页面以确保数据正确呈现？',
+            () => { location.reload(); }
+        );
+    } catch (e) {
+        alert('导入失败：' + (e && e.message ? e.message : e));
+    }
+}
+function bindImpExpEvents() {
+    const exportBtn = document.getElementById('impExpExportBtn');
+    const importBtn = document.getElementById('impExpImportBtn');
+    const mergeBtn = document.getElementById('impExpMergeBtn');
+    const importFile = document.getElementById('impExpImportFile');
+    const mergeFile = document.getElementById('impExpMergeFile');
+    if (exportBtn) exportBtn.addEventListener('click', exportTableAsFile);
+    if (importBtn && importFile) importBtn.addEventListener('click', () => importFile.value = '' || importFile.click());
+    if (importFile) {
+        importFile.addEventListener('change', () => {
+            const f = importFile.files && importFile.files[0];
+            if (f) importTableFromFile(f, 'full');
+            importFile.value = '';
+        });
+    }
+    if (mergeBtn && mergeFile) mergeBtn.addEventListener('click', () => mergeFile.value = '' || mergeFile.click());
+    if (mergeFile) {
+        mergeFile.addEventListener('change', () => {
+            const f = mergeFile.files && mergeFile.files[0];
+            if (f) importTableFromFile(f, 'merge');
+            mergeFile.value = '';
+        });
+    }
+}
+// 绑定版本按钮 / 关闭 / Esc
+function bindVersionEvents() {
+    const openBtn = document.getElementById('openVersionModalBtn');
+    const closeBtn = document.getElementById('versionModalClose');
+    const tag = document.getElementById('versionTag');
+    if (tag) tag.innerText = APP_VERSION;
+    if (openBtn) openBtn.addEventListener('click', openVersionModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeVersionModal);
+}
+// 绑定：睁眼/闭眼切换 + 账号详情弹窗 4 字段输入事件 + 复制/关闭按钮
+function bindEyeAndAccDetailEvents() {
+    // 工具栏睁眼/闭眼切换
+    const eyeBtn = document.getElementById('toggleEyeBtn');
+    if (eyeBtn) {
+        eyeBtn.addEventListener('click', () => {
+            finishEditing();
+            appData.eyesOpen = !(appData.eyesOpen !== false);
+            saveData();
+            renderTable();
+            // 如果此时详情弹窗开着，立即更新遮罩
+            const overlay = document.getElementById('accDetailModal');
+            if (overlay && !overlay.classList.contains('hidden')) _applyDetailEyes();
+        });
+    }
+    // 4 字段：任何输入都实时保存（debounce）；备注还要自适应高度
+    ['accDetailAccount', 'accDetailPassword', 'accDetailPin2'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => _scheduleDetailSave());
+    });
+    const noteEl = document.getElementById('accDetailNote');
+    if (noteEl) {
+        noteEl.addEventListener('input', () => { _fitNoteHeight(); _scheduleDetailSave(); });
+    }
+    // 关闭按钮
+    const closeBtn = document.getElementById('accDetailCloseBtn');
+    if (closeBtn) closeBtn.addEventListener('click', closeAccDetailModal);
+    // 弹窗内"复制账号"按钮（始终复制账号字段原值，即便闭眼也复制实际值）
+    const copyBtn = document.getElementById('accDetailCopyBtn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+            const acc = appData.accounts[_curDetailAccIdx]; if (!acc) return;
+            const val = acc.account || ''; if (!val) return;
+            copyToClipboard(val);
+            const old = copyBtn.innerText;
+            copyBtn.innerText = '✓ 已复制';
+            copyBtn.style.background = '#2b613c'; copyBtn.style.color = '#d1ffdd';
+            const k = 'acc_detail_copy';
+            if (copyTimers[k]) clearTimeout(copyTimers[k]);
+            copyTimers[k] = setTimeout(() => {
+                copyBtn.innerText = old;
+                copyBtn.style.background = ''; copyBtn.style.color = '';
+                delete copyTimers[k];
+            }, 1400);
+        });
+    }
+}
+
+/* ============================================================
+ *  插件管理弹窗（含排序拖拽：列表顺序 ↔ 插件栏阅读顺序 1:1）
+ *  拖拽功能：模仿账号/副本拖动，使用漂浮克隆 + 原行 ghost + 插入线，并限制范围在弹窗内
+ *  拖动过程中禁止失焦自动关闭（拖拽状态下 blur 忽略）
+ * ============================================================ */
+let _pluginMgrDragState = null;
+function _clearPluginMgrDropMarkers(resetTransform) {
+    const list = document.getElementById('pluginOptionList');
+    if (!list) return;
+    list.querySelectorAll('.plugin-option').forEach(el => {
+        el.classList.remove('drop-before', 'drop-after', 'drag-over-above', 'drag-over-below', 'drag-src-ghost');
+        if (resetTransform) el.style.transform = '';
+    });
+}
+/* 抽离：给单个插件行绑把手的 pointer 拖拽闭包
+   FIX2：openPluginMgr 首次绑定 + _refreshPluginMgrDomOrder 重建重绑 都调用这个函数，保证每行的闭包变量和 DOM 都同步最新 */
+function _bindPluginOption(row, list, box) {
+    if (!row || !list || !box) return;
+    const handle = row.querySelector('.plugin-option-drag-handle');
+    if (!handle) return;
+    const thresholdPx = 4;
+    let startX = 0, startY = 0;
+    let dragActive = false;
+    let floatEl = null;
+    let offsetX = 0, offsetY = 0;
+    let rowRects = [];
+    let boxRect = null;
+    let insertPos = null;
+    const cacheRects = () => {
+        const rows = Array.from(list.querySelectorAll('.plugin-option'));
+        rowRects = [];
+        rows.forEach(r => {
+            const idx = parseInt(r.dataset.plugIndex, 10);
+            const r0 = r.getBoundingClientRect();
+            rowRects.push({ el: r, index: idx, top: r0.top, bottom: r0.bottom, height: r0.height, mid: r0.top + r0.height / 2 });
+        });
+        boxRect = box.getBoundingClientRect();
+    };
+    const cleanupFloat = () => {
+        if (floatEl && floatEl.parentNode) floatEl.parentNode.removeChild(floatEl);
+        floatEl = null;
+    };
+    const positionFloat = (cx, cy) => {
+        if (!floatEl) return;
+        let x = cx - offsetX, y = cy - offsetY;
+        const minX = boxRect ? boxRect.left + 6 : 0;
+        const minY = boxRect ? boxRect.top + 6 : 0;
+        const maxX = boxRect ? boxRect.right - floatEl.offsetWidth - 6 : window.innerWidth - floatEl.offsetWidth;
+        const maxY = boxRect ? boxRect.bottom - floatEl.offsetHeight - 6 : window.innerHeight - floatEl.offsetHeight;
+        if (x < minX) x = minX;
+        if (x > maxX) x = maxX;
+        if (y < minY) y = minY;
+        if (y > maxY) y = maxY;
+        floatEl.style.left = x + 'px';
+        floatEl.style.top = y + 'px';
+    };
+    const clampY = (cy) => {
+        if (!boxRect) return cy;
+        const minY = boxRect.top + offsetY + 6;
+        const maxY = boxRect.bottom - (floatEl ? (floatEl.offsetHeight - offsetY) : 36) - 6;
+        return Math.min(Math.max(cy, minY), maxY);
+    };
+    const calcInsert = (cy) => {
+        if (!rowRects.length) return null;
+        if (cy < rowRects[0].mid) return { index: 0, side: 'above', targetEl: rowRects[0].el };
+        const last = rowRects[rowRects.length - 1];
+        if (cy >= last.mid) return { index: rowRects.length, side: 'below', targetEl: last.el };
+        for (let i = 1; i < rowRects.length; i++) {
+            if (cy < rowRects[i].mid) return { index: i, side: 'above', targetEl: rowRects[i].el };
+        }
+        return { index: rowRects.length, side: 'below', targetEl: last.el };
+    };
+    const applyVisuals = (ins, srcIndex) => {
+        insertPos = ins;
+        const rows = Array.from(list.querySelectorAll('.plugin-option'));
+        rows.forEach(r => {
+            r.classList.remove('drag-over-above', 'drag-over-below');
+            r.style.transform = '';
+        });
+        if (!ins) return;
+        if (ins.side === 'above') ins.targetEl.classList.add('drag-over-above');
+        else ins.targetEl.classList.add('drag-over-below');
+        const srcH = (rowRects[srcIndex] ? rowRects[srcIndex].height : 0) || 52;
+        const dstIdx = ins.index;
+        rows.forEach(r => {
+            const rIdx = parseInt(r.dataset.plugIndex, 10);
+            let shift = 0;
+            if (dstIdx > srcIndex) {
+                if (rIdx > srcIndex && rIdx < dstIdx) shift = -srcH;
+                else if (rIdx === dstIdx - 1 && dstIdx - 1 !== srcIndex) shift = -srcH;
+            } else if (dstIdx < srcIndex) {
+                if (rIdx >= dstIdx && rIdx < srcIndex) shift = srcH;
+            }
+            r.style.transform = shift ? `translateY(${shift}px)` : '';
+        });
+    };
+    handle.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try { handle.setPointerCapture(e.pointerId); } catch(err) {}
+        const startIdx = parseInt(row.dataset.plugIndex, 10);
+        _pluginMgrDragState = {
+            handle: handle,
+            pointerId: e.pointerId,
+            startIdx: startIdx,
+            srcRow: row
+        };
+        startX = e.clientX; startY = e.clientY;
+        dragActive = false;
+    });
+    handle.addEventListener('pointermove', (e) => {
+        if (!_pluginMgrDragState || _pluginMgrDragState.pointerId !== e.pointerId) return;
+        if (!dragActive) {
+            if (Math.abs(e.clientY - startY) < thresholdPx) return;
+            dragActive = true;
+            const rect = row.getBoundingClientRect();
+            offsetX = startX - rect.left;
+            offsetY = startY - rect.top;
+            floatEl = document.createElement('div');
+            floatEl.className = 'plugin-drag-floating';
+            floatEl.style.width = rect.width + 'px';
+            floatEl.style.height = rect.height + 'px';
+            const clone = row.cloneNode(true);
+            clone.style.width = '100%';
+            clone.style.height = '100%';
+            clone.style.borderRadius = '16px';
+            clone.style.border = 'none';
+            const h = clone.querySelector('.plugin-option-drag-handle');
+            if (h) h.style.visibility = 'hidden';
+            floatEl.appendChild(clone);
+            document.body.appendChild(floatEl);
+            row.classList.add('dragging', 'drag-src-ghost');
+            cacheRects();
+            positionFloat(startX, startY);
+        }
+        e.preventDefault();
+        const cy = clampY(e.clientY);
+        positionFloat(e.clientX, cy);
+        const ins = calcInsert(cy);
+        applyVisuals(ins, parseInt(row.dataset.plugIndex, 10));
+    });
+    const endDrag = (e, committed) => {
+        if (!_pluginMgrDragState || _pluginMgrDragState.pointerId !== e.pointerId) return;
+        try { handle.releasePointerCapture(e.pointerId); } catch(err) {}
+        row.classList.remove('dragging', 'drag-src-ghost');
+        const finalIns = (committed && insertPos) ? insertPos : null;
+        const srcIdx0 = parseInt(row.dataset.plugIndex, 10);
+        _pluginMgrDragState = null;
+        _clearPluginMgrDropMarkers(true);
+        cleanupFloat();
+        dragActive = false;
+        insertPos = null;
+        if (!committed || !finalIns) return;
+        const allRows = Array.from(list.querySelectorAll('.plugin-option'));
+        let targetIndex = finalIns.index;
+        if (targetIndex < 0 || targetIndex > allRows.length) return;
+        if (srcIdx0 < targetIndex) targetIndex = targetIndex - 1;
+        if (srcIdx0 === targetIndex) return;
+        const ok = swapPluginOrder(srcIdx0, targetIndex);
+        if (ok) {
+            saveData();
+            buildPluginBarDOM();
+            renderPluginBar();
+            bindPluginBarEvents();
+            // FIX2：重建并重绑（会重新分配 dataset.plugIndex + 新闭包），保证下一次拖拽依然灵敏
+            _refreshPluginMgrDomOrder();
+        }
+    };
+    handle.addEventListener('pointerup', (e) => endDrag(e, true));
+    handle.addEventListener('pointercancel', (e) => endDrag(e, false));
+}
+function _refreshPluginMgrDomOrder() {
+    // 根据当前 pluginOrder 重排 DOM 顺序 + 重新绑定每行的拖拽/勾选事件
+    // 修复 FIX2：第一次拖拽成功后第二次拖拽"不好使"的根因是——_refreshPluginMgrDomOrder 之前只移动行节点但未重绑事件，导致把手的闭包变量 (startX/startY/dragActive/floatEl/...) 仍然引用第一次拖拽的行；而且 cacheRects 使用 dataset.plugIndex 与真实顺序错位
+    const list = document.getElementById('pluginOptionList');
+    if (!list) return;
+    const overlay = document.getElementById('pluginMgrModal');
+    const box = document.getElementById('pluginMgrBox');
+    const ordered = getOrderedPluginRegistry();
+    const rows = list.querySelectorAll('.plugin-option');
+    const oldMap = new Map();
+    rows.forEach(r => oldMap.set(r.dataset.plugOrderId, r));
+
+    // 为了保证第二次拖拽把手事件有效，这里重建行节点（一次性拿到干净闭包），避免搬移旧节点+旧闭包引起的 cacheRects / dragActive 状态错乱
+    list.innerHTML = '';
+    ordered.forEach((plug, index) => {
+        const row = document.createElement('div');
+        row.className = 'plugin-option';
+        row.draggable = false;
+        row.dataset.plugOrderId = plug.id;
+        row.dataset.plugIndex = String(index);
+        row.innerHTML = `
+            <span class="plugin-option-drag-handle" title="上下拖动调整插件显示顺序">&#x270B;&#xFE0E;</span>
+            <label style="display:inline-flex;align-items:center;gap:12px;flex:1;cursor:pointer;min-width:0;">
+                <input type="checkbox" data-plugid="${plug.id}" ${appData.enabledPlugins[plug.id] ? 'checked' : ''}>
+                <div class="plugin-option-text">
+                    <div class="name">${escapeHtml(plug.name)}</div>
+                    <div class="desc">${escapeHtml(plug.desc)}</div>
+                </div>
+            </label>`;
+        list.appendChild(row);
+        // 给行重新绑拖拽事件（和 openPluginMgr 内逻辑保持一致，抽离为 _bindPluginOption 单函数调用）
+        _bindPluginOption(row, list, box);
+        // 重新绑 checkbox 变更
+        const cb = row.querySelector('input[type=checkbox]');
+        if (cb) {
+            cb.addEventListener('change', () => {
+                appData.enabledPlugins[plug.id] = cb.checked;
+                saveData();
+                renderPluginBar();
+            });
+        }
+    });
+}
+function openPluginMgr() {
+    const overlay = document.getElementById('pluginMgrModal');
+    const box = document.getElementById('pluginMgrBox');
+    const list = document.getElementById('pluginOptionList');
+    list.innerHTML = '';
+    const ordered = getOrderedPluginRegistry();
+    ordered.forEach((plug, index) => {
+        const row = document.createElement('div');
+        row.className = 'plugin-option';
+        row.draggable = false;
+        row.dataset.plugOrderId = plug.id;
+        row.dataset.plugIndex = String(index);
+        row.innerHTML = `
+            <span class="plugin-option-drag-handle" title="上下拖动调整插件显示顺序">&#x270B;&#xFE0E;</span>
+            <label style="display:inline-flex;align-items:center;gap:12px;flex:1;cursor:pointer;min-width:0;">
+                <input type="checkbox" data-plugid="${plug.id}" ${appData.enabledPlugins[plug.id] ? 'checked' : ''}>
+                <div class="plugin-option-text">
+                    <div class="name">${escapeHtml(plug.name)}</div>
+                    <div class="desc">${escapeHtml(plug.desc)}</div>
+                </div>
+            </label>`;
+        list.appendChild(row);
+        _bindPluginOption(row, list, box);
+        const cb = row.querySelector('input[type=checkbox]');
+        if (cb) {
+            cb.addEventListener('change', () => {
+                appData.enabledPlugins[plug.id] = cb.checked;
+                saveData();
+                renderPluginBar();
+            });
+        }
+    });
+
+    overlay.classList.remove('hidden');
+    overlay.onclick = (e) => { if (e.target === overlay) closePluginMgr(); };
+    setTimeout(() => { window.addEventListener('blur', closePluginMgrOnBlur, { once: true }); }, 50);
+}
+function closePluginMgrOnBlur() {
+    // 修复B2：拖拽过程中移出弹窗不要触发"失焦返回"关闭
+    if (_pluginMgrDragState) {
+        const overlay = document.getElementById('pluginMgrModal');
+        if (overlay && !overlay.classList.contains('hidden')) {
+            // 重新挂一次一次性 blur（下次失焦再检查），避免失焦功能永久失效
+            setTimeout(() => { window.addEventListener('blur', closePluginMgrOnBlur, { once: true }); }, 80);
+        }
+        return;
+    }
+    const overlay = document.getElementById('pluginMgrModal');
+    if (!overlay.classList.contains('hidden')) closePluginMgr();
+}
+function closePluginMgr() {
+    _pluginMgrDragState = null;
+    const list = document.getElementById('pluginOptionList');
+    if (list) {
+        list.querySelectorAll('.plugin-option').forEach(r => {
+            r.classList.remove('dragging','drop-before','drop-after','drag-over-above','drag-over-below','drag-src-ghost');
+            r.style.transform = '';
+        });
+    }
+    const overlay = document.getElementById('pluginMgrModal');
+    overlay.classList.add('hidden');
+    overlay.onclick = null;
+}
+
+/* ============================================================
+ *  复制到剪贴板
+ * ============================================================ */
+const copyTimers = {};
+function copyToClipboard(text) {
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else fallbackCopy(text);
+}
+function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+}
+
+/* ============================================================
+ *  自定义背景图
+ * ============================================================ */
+function applyBackground() {
+    const layer = document.getElementById('bgLayer');
+    if (appData.backgroundImage && typeof appData.backgroundImage === 'string') {
+        layer.style.backgroundImage = `url("${appData.backgroundImage}")`;
+    } else {
+        layer.style.backgroundImage = '';
+    }
+}
+function handleBgFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            appData.backgroundImage = String(reader.result || '');
+            saveData();
+            applyBackground();
+        } catch(e) {}
+    };
+    reader.readAsDataURL(file);
+}
+
+/* ============================================================
+ *  ============== 新型拖拽：克隆悬空 + 位移补位动画 ==============
+ *  经验提醒：
+ *   1) 克隆设 pointer-events:none，命中检测前隐藏克隆
+ *   2) 所有结束路径统一走 cleanup 函数
+ *   3) 单一收敛结束条件：mouseup capture + buttons 兜底
+ * ============================================================ */
+(function bindAdvancedDrag() {
+    const wrapper = document.getElementById('tableWrapper');
+
+    // ---------------- 共享状态 ----------------
+    let mode = null;           // 'row' | 'col' | null
+    let srcIdx = null;         // 被拖拽的源 index
+    let moved = false;
+    let threshold = 4;
+    let startX = 0, startY = 0;
+    let offsetX = 0, offsetY = 0; // 鼠标相对克隆左上的偏移
+    let floatEl = null;       // 悬空克隆 DOM
+    let insertPos = null;     // 当前插入位置：{type:'above'|'below'|'left'|'right', targetIdx}
+    // 缓存各元素的位置/尺寸，避免动画期间 reflow 抖动
+    let rowRects = [];
+    let colRects = [];        // [{thEl, left, right, width, index}]
+    let tableRect = null;
+    let firstRowTop = 0;
+
+    // ---------------- 清理函数（统一出口） ----------------
+    function cleanup(resetTransform) {
+        // 1) 移除悬空克隆
+        if (floatEl) {
+            try { floatEl.remove(); } catch(e) {}
+            floatEl = null;
+        }
+        // 2) 清所有高亮 & transform
+        const rows = wrapper.querySelectorAll('tbody tr[data-account-row]');
+        rows.forEach(r => {
+            r.classList.remove('drag-over-above', 'drag-over-below', 'drag-src-ghost');
+            if (resetTransform) r.style.transform = '';
+        });
+        wrapper.querySelectorAll('th[data-dungeon-index], td[data-dungeon-col]').forEach(el => {
+            el.classList.remove('drag-over-left', 'drag-over-right', 'drag-src-ghost');
+            if (resetTransform) el.style.transform = '';
+        });
+        // 3) 恢复 cursor
+        try { document.body.style.cursor = ''; } catch(_) {}
+        // 4) 复位状态
+        mode = null; srcIdx = null; moved = false;
+        insertPos = null;
+        rowRects = []; colRects = []; tableRect = null;
+    }
+
+    // ---------------- Row 拖拽 ----------------
+    wrapper.addEventListener('mousedown', (e) => {
+        if (mode) return;
+        const handle = e.target.closest('.drag-handle-row');
+        if (handle) {
+            const tr = handle.closest('tr[data-account-row]');
+            if (!tr) return;
+            const idx = parseInt(tr.dataset.accountRow, 10);
+            if (isNaN(idx)) return;
+            e.preventDefault();
+            mode = 'row';
+            srcIdx = idx;
+            startX = e.clientX; startY = e.clientY;
+            moved = false;
+            return;
+        }
+        const colHandle = e.target.closest('.drag-handle-col');
+        if (colHandle) {
+            const th = colHandle.closest('th[data-dungeon-index]');
+            if (!th) return;
+            const idx = parseInt(th.dataset.dungeonIndex, 10);
+            if (isNaN(idx)) return;
+            e.preventDefault();
+            mode = 'col';
+            srcIdx = idx;
+            startX = e.clientX; startY = e.clientY;
+            moved = false;
+            return;
+        }
+    });
+
+    // 全局 mousemove（捕获阶段，保证跟手）
+    document.addEventListener('mousemove', onDocMove, true);
+    function onDocMove(e) {
+        if (!mode) return;
+        // buttons 兜底：若不是左键，取消拖拽
+        if ((e.buttons & 1) === 0) {
+            onDocUp(e);
+            return;
+        }
+
+        if (!moved) {
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            const pass = (mode === 'row') ? (Math.abs(dy) >= threshold) : (Math.abs(dx) >= threshold);
+            if (!pass) return;
+            // 跨过阈值，正式进入拖拽
+            finishEditing();
+            moved = true;
+            try { document.body.style.cursor = 'grabbing'; } catch(_) {}
+            if (mode === 'row') prepareRowFloat(e);
+            else prepareColFloat(e);
+        }
+
+        if (mode === 'row') updateRowDrag(e);
+        else updateColDrag(e);
+    }
+
+    // 全局 mouseup（捕获阶段）
+    document.addEventListener('mouseup', onDocUp, true);
+    function onDocUp(e) {
+        if (!mode) return;
+        if (!moved) { cleanup(false); return; }
+
+        let finalInsert = insertPos;
+        // 命中检测前：临时隐藏克隆，避免遮挡
+        if (floatEl) {
+            try { floatEl.style.visibility = 'hidden'; } catch(_) {}
+        }
+        // 如果还没判定插入位置，再根据当前鼠标位置强制判一次（最后位置决定）
+        if (!finalInsert && mode === 'row') finalInsert = calcRowInsert(e.clientY);
+        if (!finalInsert && mode === 'col') finalInsert = calcColInsert(e.clientX, e.clientY);
+
+        const curMode = mode;
+        const curSrc = srcIdx;
+        cleanup(true);   // 清所有视觉效果
+
+        // 执行数据搬迁
+        if (finalInsert && !isNaN(curSrc) && curSrc >= 0) {
+            let dst = finalInsert.index;
+            if (curSrc < dst) dst -= 1;
+            if (curSrc !== dst) {
+                if (curMode === 'row') {
+                    const movedAcc = appData.accounts.splice(curSrc, 1)[0];
+                    const movedState = appData.states.splice(curSrc, 1)[0];
+                    appData.accounts.splice(dst, 0, movedAcc);
+                    appData.states.splice(dst, 0, movedState);
+                } else {
+                    const movedName = appData.dungeons.splice(curSrc, 1)[0];
+                    appData.states.forEach(row => {
+                        const v = row.splice(curSrc, 1)[0];
+                        row.splice(dst, 0, v);
+                    });
+                    appData.dungeons.splice(dst, 0, movedName);
+                }
+                saveData();
+                renderTable();
+                renderPluginBar();
+                return;
+            }
+        }
+        // 未命中目标/同位置：重渲染恢复
+        renderTable();
+        renderPluginBar();
+    }
+
+    window.addEventListener('blur', () => {
+        if (mode) cleanup(true);
+    });
+
+    // ---------------- Row 拖拽：构造悬空克隆 ----------------
+    function prepareRowFloat(e) {
+        const srcTr = wrapper.querySelector(`tbody tr[data-account-row="${srcIdx}"]`);
+        if (!srcTr) { cleanup(true); return; }
+        // 克隆行（完整宽度=原行尺寸）
+        const rect = srcTr.getBoundingClientRect();
+        floatEl = document.createElement('div');
+        floatEl.className = 'drag-floating';
+        // 用 table 包裹克隆的一行，保留原单元格宽度
+        const tblClone = document.createElement('table');
+        tblClone.style.width = rect.width + 'px';
+        tblClone.style.borderCollapse = 'separate';
+        tblClone.style.borderSpacing = '0';
+        tblClone.style.tableLayout = 'fixed';
+        const newTr = srcTr.cloneNode(true);
+        newTr.querySelectorAll('.drag-handle-row, .delete-btn').forEach(el => el.style.visibility = 'hidden');
+        // 每个 td 显式设宽，防止变形
+        const origTds = srcTr.querySelectorAll('td');
+        const newTds = newTr.querySelectorAll('td');
+        origTds.forEach((orig, i) => {
+            if (newTds[i]) {
+                const r = orig.getBoundingClientRect();
+                newTds[i].style.width = r.width + 'px';
+                newTds[i].style.minWidth = r.width + 'px';
+                newTds[i].style.maxWidth = r.width + 'px';
+            }
+        });
+        const tb = document.createElement('tbody');
+        tb.appendChild(newTr);
+        tblClone.appendChild(tb);
+        floatEl.appendChild(tblClone);
+        // 克隆节点外观不变色不变透明：黄色方框通过 class 已设置
+        floatEl.style.width = rect.width + 'px';
+        floatEl.style.height = rect.height + 'px';
+        // 鼠标相对克隆左上的偏移（使克隆跟着鼠标不跳动）
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        document.body.appendChild(floatEl);
+        positionFloat(e.clientX, e.clientY);
+        // 源位置标记为 ghost（空出的感觉）
+        srcTr.classList.add('drag-src-ghost');
+        // 缓存各行 rect
+        cacheRowRects();
+    }
+
+    function positionFloat(cx, cy) {
+        if (!floatEl) return;
+        // 限制在表格范围内（不能超出可插入范围）
+        let x = cx - offsetX;
+        let y = cy - offsetY;
+        if (tableRect) {
+            // 不超过表格左右边界
+            const maxX = tableRect.right - floatEl.offsetWidth;
+            if (x < tableRect.left) x = tableRect.left;
+            if (x > maxX) x = maxX;
+            // 不超过表格上下边界（限制动画效果：拖出表格也停在边界）
+            const maxY = tableRect.bottom - floatEl.offsetHeight;
+            if (y < firstRowTop) y = firstRowTop;
+            if (y > maxY) y = maxY;
+        }
+        floatEl.style.left = x + 'px';
+        floatEl.style.top = y + 'px';
+    }
+
+    function cacheRowRects() {
+        const rows = wrapper.querySelectorAll('tbody tr[data-account-row]');
+        rowRects = [];
+        rows.forEach(r => {
+            const idx = parseInt(r.dataset.accountRow, 10);
+            const r0 = r.getBoundingClientRect();
+            rowRects.push({ el: r, index: idx, top: r0.top, bottom: r0.bottom, height: r0.height });
+        });
+        const wRect = wrapper.getBoundingClientRect();
+        const tblEl = wrapper.querySelector('table');
+        tableRect = tblEl ? tblEl.getBoundingClientRect() : wRect;
+        if (rowRects.length) firstRowTop = rowRects[0].top;
+    }
+
+    function calcRowInsert(clientY) {
+        if (!rowRects.length) return null;
+        // 限制 clientY 在表格可插入范围
+        let y = clientY;
+        if (y < rowRects[0].top + rowRects[0].height / 2) {
+            return { index: 0, side: 'above', targetEl: rowRects[0].el };
+        }
+        const last = rowRects[rowRects.length - 1];
+        if (y >= last.bottom - last.height / 2) {
+            return { index: rowRects.length, side: 'below', targetEl: last.el };
+        }
+        for (let i = 0; i < rowRects.length; i++) {
+            const r = rowRects[i];
+            if (y < r.top + r.height / 2) {
+                return { index: i, side: 'above', targetEl: r.el };
+            }
+        }
+        return { index: rowRects.length, side: 'below', targetEl: last.el };
+    }
+
+    function updateRowDrag(e) {
+        // 限制在表格内
+        const cy = clampRowY(e.clientY);
+        positionFloat(e.clientX, cy);
+        // 判定插入位置
+        const ins = calcRowInsert(cy);
+        applyRowVisuals(ins);
+    }
+
+    function clampRowY(y) {
+        if (!rowRects.length) return y;
+        const minY = rowRects[0].top + rowRects[0].height / 2;
+        const last = rowRects[rowRects.length - 1];
+        const maxY = last.bottom - last.height / 2;
+        if (y < minY) return minY;
+        if (y > maxY) return maxY;
+        return y;
+    }
+
+    function applyRowVisuals(ins) {
+        insertPos = ins;
+        const rows = wrapper.querySelectorAll('tbody tr[data-account-row]');
+        // 清高亮
+        rows.forEach(r => r.classList.remove('drag-over-above', 'drag-over-below'));
+        if (!ins) return;
+        // 高亮插入线
+        if (ins.side === 'above' && ins.targetEl) ins.targetEl.classList.add('drag-over-above');
+        else if (ins.side === 'below' && ins.targetEl) ins.targetEl.classList.add('drag-over-below');
+        // 位移补位：把 src 到 dst 之间的元素向上或向下推 1 行高
+        const dstIdx = ins.index;
+        const srcH = rowRects[srcIdx] ? rowRects[srcIdx].height : 52;
+        rows.forEach(r => {
+            const rIdx = parseInt(r.dataset.accountRow, 10);
+            let shift = 0;
+            if (dstIdx > srcIdx) {
+                // src 要挪到 dstIdx：srcIdx+1 ~ dstIdx-1 的元素向上 -srcH
+                if (rIdx > srcIdx && rIdx < dstIdx) shift = -srcH;
+                else if (rIdx === dstIdx - 1 && dstIdx - 1 !== srcIdx) shift = -srcH;
+            } else if (dstIdx < srcIdx) {
+                // src 要挪到 dstIdx：dstIdx ~ srcIdx-1 的元素向下 +srcH
+                if (rIdx >= dstIdx && rIdx < srcIdx) shift = srcH;
+            }
+            r.style.transform = shift ? `translateY(${shift}px)` : '';
+        });
+    }
+
+    // ---------------- Col 拖拽：构造悬空克隆 ----------------
+    function prepareColFloat(e) {
+        // 限制：列只能在"副本列"范围内拖动，插入不能到 ED/备注/账号密码列 内部/之后
+        const allTh = Array.from(wrapper.querySelectorAll('th'));
+        // 找到副本 th 区间：索引范围 [firstDungeonThIndex, lastDungeonThIndex]
+        let firstDungeonThIndex = -1, lastDungeonThIndex = -1;
+        allTh.forEach((th, i) => {
+            if (th.hasAttribute('data-dungeon-index')) {
+                if (firstDungeonThIndex === -1) firstDungeonThIndex = i;
+                lastDungeonThIndex = i;
+            }
+        });
+        if (firstDungeonThIndex === -1) { cleanup(true); return; }
+        // ED 列 就是 lastDungeonThIndex + 1，插入范围上限 = (副本列数) 即可以插到最后一个副本之后，但不能到 ED 列之后
+        // th 索引：0=账号，[1..N]=副本，N+1=ED，N+2=备注
+        const N = appData.dungeons.length;
+
+        // 源 th & td
+        const srcTh = wrapper.querySelector(`th[data-dungeon-index="${srcIdx}"]`);
+        if (!srcTh) { cleanup(true); return; }
+        const srcCells = wrapper.querySelectorAll(`td[data-dungeon-col="${srcIdx}"]`);
+        const thRect = srcTh.getBoundingClientRect();
+
+        // 计算克隆尺寸：宽=th宽，高=整表高（thead+tbody）
+        const tblEl = wrapper.querySelector('table');
+        const tblRect = tblEl.getBoundingClientRect();
+        const totalHeight = tblRect.height;
+
+        floatEl = document.createElement('div');
+        floatEl.className = 'drag-floating';
+        // 克隆的列：用一个带 th/td 的容器，每项高度对齐
+        // 先克隆 th
+        const colWrap = document.createElement('div');
+        colWrap.style.width = thRect.width + 'px';
+        colWrap.style.height = totalHeight + 'px';
+        colWrap.style.display = 'flex';
+        colWrap.style.flexDirection = 'column';
+        const thClone = srcTh.cloneNode(true);
+        thClone.querySelectorAll('.drag-handle-col, .delete-btn').forEach(el => el.style.visibility = 'hidden');
+        thClone.style.width = thRect.width + 'px';
+        thClone.style.height = thRect.height + 'px';
+        thClone.style.flexShrink = '0';
+        colWrap.appendChild(thClone);
+        // 克隆每个 td（匹配每行高度）
+        srcCells.forEach(cell => {
+            const cRect = cell.getBoundingClientRect();
+            const c = cell.cloneNode(true);
+            c.style.width = cRect.width + 'px';
+            c.style.height = cRect.height + 'px';
+            c.style.flexShrink = '0';
+            colWrap.appendChild(c);
+        });
+        floatEl.appendChild(colWrap);
+        floatEl.style.width = thRect.width + 'px';
+        floatEl.style.height = totalHeight + 'px';
+        offsetX = e.clientX - thRect.left;
+        offsetY = e.clientY - tblRect.top;
+        document.body.appendChild(floatEl);
+        positionColFloat(e.clientX, tblRect.top + offsetY, firstDungeonThIndex, lastDungeonThIndex, allTh);
+        // 源位置 ghost
+        srcTh.classList.add('drag-src-ghost');
+        srcCells.forEach(c => c.classList.add('drag-src-ghost'));
+        // 缓存列 rect
+        cacheColRects();
+    }
+
+    function cacheColRects() {
+        const ths = wrapper.querySelectorAll('th[data-dungeon-index]');
+        colRects = [];
+        ths.forEach(th => {
+            const idx = parseInt(th.dataset.dungeonIndex, 10);
+            const r = th.getBoundingClientRect();
+            colRects.push({ el: th, index: idx, left: r.left, right: r.right, width: r.width, mid: r.left + r.width / 2 });
+        });
+        const tblEl = wrapper.querySelector('table');
+        tableRect = tblEl ? tblEl.getBoundingClientRect() : wrapper.getBoundingClientRect();
+    }
+
+    function positionColFloat(cx, cy, firstDI, lastDI, allTh) {
+        if (!floatEl) return;
+        let x = cx - offsetX;
+        let y = cy;
+        // X 轴限制：副本列区间内
+        if (colRects.length) {
+            const firstC = colRects[0];
+            const lastC = colRects[colRects.length - 1];
+            if (x < firstC.left) x = firstC.left;
+            if (x > lastC.right) x = lastC.right;
+        }
+        // ===== 需求 5 修复：Y 轴限制在表格可视范围内 =====
+        if (tableRect) {
+            // 浮层高度 = 整个表格高，不能超出表格 top/bottom
+            const minY = tableRect.top;
+            const maxY = tableRect.bottom - floatEl.offsetHeight;
+            if (y < minY) y = minY;
+            if (y > maxY) y = maxY;
+        }
+        floatEl.style.left = x + 'px';
+        floatEl.style.top = y + 'px';
+    }
+
+    function calcColInsert(clientX, clientY) {
+        if (!colRects.length) return null;
+        // 插入限制：只能在副本列之间/前/后（ED 列禁止进入，后续列禁止）
+        const firstC = colRects[0];
+        const lastC = colRects[colRects.length - 1];
+        let x = clientX;
+        if (x < firstC.mid) return { index: 0, side: 'left', targetEl: firstC.el };
+        if (x >= lastC.mid) return { index: colRects.length, side: 'right', targetEl: lastC.el };
+        for (let i = 0; i < colRects.length; i++) {
+            const c = colRects[i];
+            if (x < c.mid) return { index: i, side: 'left', targetEl: c.el };
+        }
+        return { index: colRects.length, side: 'right', targetEl: lastC.el };
+    }
+
+    function updateColDrag(e) {
+        if (!colRects.length || !tableRect || !floatEl) return;
+        const firstC = colRects[0];
+        const lastC = colRects[colRects.length - 1];
+
+        // ===== 鼠标坐标先做表格范围的硬限制（X：副本列内，Y：表格内） =====
+        let cx = e.clientX;
+        let cy = e.clientY;
+        // X：限制在 [firstC.left + offsetX, lastC.right + offsetX - floatEl.width*0.1]
+        const minCx = firstC.left + offsetX;
+        const maxCx = lastC.right + (offsetX < floatEl.offsetWidth ? offsetX : floatEl.offsetWidth * 0.6);
+        if (cx < minCx) cx = minCx;
+        if (cx > maxCx) cx = maxCx;
+        // Y：限制在 [tableRect.top + offsetY, tableRect.bottom - floatEl.height + offsetY]
+        const minCy = tableRect.top + offsetY;
+        const maxCy = tableRect.bottom - floatEl.offsetHeight + offsetY;
+        if (cy < minCy) cy = minCy;
+        if (cy > maxCy) cy = maxCy;
+
+        // cy 传给 positionColFloat 时按原公式：cy - offsetY（因为 positionColFloat 内部会再加上）
+        positionColFloat(cx, cy - offsetY, 0, 0, null);
+
+        // 插入位置判定：X 仍限制副本列范围
+        let limX = cx;
+        if (limX < firstC.left) limX = firstC.left;
+        if (limX > lastC.right) limX = lastC.right;
+        const ins = calcColInsert(limX, cy);
+        applyColVisuals(ins);
+    }
+
+    function applyColVisuals(ins) {
+        insertPos = ins;
+        const allTh = wrapper.querySelectorAll('th[data-dungeon-index]');
+        const allTd = wrapper.querySelectorAll('td[data-dungeon-col]');
+        // 清高亮
+        allTh.forEach(el => el.classList.remove('drag-over-left', 'drag-over-right'));
+        allTd.forEach(el => el.classList.remove('drag-over-left', 'drag-over-right'));
+        if (!ins) return;
+        // 高亮插入线
+        const markIdx = (ins.side === 'right') ? (ins.index - 1) : ins.index;
+        if (markIdx >= 0 && markIdx < colRects.length) {
+            const targetTh = colRects[markIdx].el;
+            const side = (ins.side === 'right') ? 'right' : 'left';
+            const cls = side === 'left' ? 'drag-over-left' : 'drag-over-right';
+            targetTh.classList.add(cls);
+            wrapper.querySelectorAll(`td[data-dungeon-col="${targetTh.dataset.dungeonIndex}"]`).forEach(td => td.classList.add(cls));
+        }
+        // 位移补位：计算 src -> dst，中间列推挤
+        const dstIdx = ins.index;
+        const srcW = colRects[srcIdx] ? colRects[srcIdx].width : 100;
+        function setShift(el, w) {
+            if (!el) return;
+            el.style.transform = w ? `translateX(${w}px)` : '';
+        }
+        allTh.forEach(th => {
+            const idx = parseInt(th.dataset.dungeonIndex, 10);
+            let shift = 0;
+            if (dstIdx > srcIdx) {
+                if (idx > srcIdx && idx < dstIdx) shift = -srcW;
+                else if (idx === dstIdx - 1 && dstIdx - 1 !== srcIdx) shift = -srcW;
+            } else if (dstIdx < srcIdx) {
+                if (idx >= dstIdx && idx < srcIdx) shift = srcW;
+            }
+            setShift(th, shift);
+        });
+        allTd.forEach(td => {
+            const idx = parseInt(td.dataset.dungeonCol, 10);
+            let shift = 0;
+            if (dstIdx > srcIdx) {
+                if (idx > srcIdx && idx < dstIdx) shift = -srcW;
+                else if (idx === dstIdx - 1 && dstIdx - 1 !== srcIdx) shift = -srcW;
+            } else if (dstIdx < srcIdx) {
+                if (idx >= dstIdx && idx < srcIdx) shift = srcW;
+            }
+            setShift(td, shift);
+        });
+    }
+
+})();
+
+/* ============================================================
+ *  初始化入口
+ * ============================================================ */
+function init() {
+    loadData();
+    buildPluginBarDOM();
+    renderTable();
+    renderPluginBar();
+    applyBackground();
+    bindVersionEvents();
+    bindEyeAndAccDetailEvents();
+
+    /* 添加账号/副本 */
+    document.getElementById('addAccountBtn').addEventListener('click', () => {
+        finishEditing();
+        appData.accounts.push({ name: '新账号', note: '', ed: 0, account: '', password: '', pin2: '', accNote: '' });
+        appData.states.push(new Array(appData.dungeons.length).fill('todo'));
+        saveData(); renderTable(); renderPluginBar();
+    });
+    document.getElementById('addDungeonBtn').addEventListener('click', () => {
+        finishEditing();
+        appData.dungeons.push('新副本');
+        appData.states.forEach(row => row.push('todo'));
+        saveData(); renderTable(); renderPluginBar();
+    });
+
+    /* 插件按钮 + 柱状图按钮 + 关闭 */
+    document.getElementById('openPluginMgrBtn').addEventListener('click', openPluginMgr);
+    document.getElementById('pluginMgrClose').addEventListener('click', closePluginMgr);
+    bindPluginBarEvents();
+    document.getElementById('chartCloseBtn').addEventListener('click', closeChartModal);
+
+    /* Esc 关闭所有弹窗（从上到下：先关最上层 accDetailModal 再按顺序） */
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (!document.getElementById('accDetailModal').classList.contains('hidden')) closeAccDetailModal();
+            if (!document.getElementById('weeklyModal').classList.contains('hidden')) closeWeeklyModal();
+            if (!document.getElementById('chartModal').classList.contains('hidden')) closeChartModal();
+            if (!document.getElementById('confirmModal').classList.contains('hidden')) hideConfirm(false);
+            if (!document.getElementById('pluginMgrModal').classList.contains('hidden')) closePluginMgr();
+            if (!document.getElementById('versionModal').classList.contains('hidden')) closeVersionModal();
+        }
+    });
+    /* 确认弹窗按钮 */
+    document.getElementById('modalCancel').addEventListener('click', () => hideConfirm(false));
+    document.getElementById('modalConfirm').addEventListener('click', () => hideConfirm(true));
+
+    /* 重置按钮 */
+    document.getElementById('resetDoneBtn').addEventListener('click', () => {
+        showConfirmDialog('确定重置所有完成状态？', () => {
+            finishEditing();
+            // 关键：先记录"重置时"的完成率快照（此时 states 还是旧数据），再执行清零
+            recordWeeklyOnReset();
+            for (let a = 0; a < appData.states.length; a++) {
+                for (let d = 0; d < appData.states[a].length; d++) {
+                    if (appData.states[a][d] === 'done') appData.states[a][d] = 'todo';
+                }
+            }
+            appData.lastResetTime = new Date().toISOString();
+            saveData(); renderTable(); renderPluginBar();
+        });
+    });
+
+    /* ED 比例按钮 & input —— 统一走 bindPluginBarEvents 绑定（上方 2302 行已在 init 阶段调用；下方函数定义声明提升至文件顶部，不必重复） */
+
+    /* 标题编辑 —— 修复 1：直接在 el（h1）上做原地编辑，不再传 parentElement（否则会拉到容器中部），和备注同逻辑 */
+    document.getElementById('mainTitle').addEventListener('click', function() {
+        const el = this;
+        startInlineEdit(el, {
+            initialValue: el.innerText, type: 'text', align: 'left',
+            validator: (v) => (v && v.trim()) || TITLE_DEFAULT,
+            onSave: (v) => { appData.title = v; saveData(); },
+            afterFinish: () => renderTable()
+        });
+    });
+
+    /* 背景图：
+       - 🖼️ 背景图按钮：直接打开文件选择器，选择并应用；取消 = 什么也不做（不清背景）
+       - 🗑️ 删除背景按钮：二次确认后把 backgroundImage 置空，恢复默认渐变背景
+    */
+    const bgFileInput = document.getElementById('bgFileInput');
+    document.getElementById('openBgBtn').addEventListener('click', () => {
+        bgFileInput.value = '';
+        bgFileInput.click();
+    });
+    document.getElementById('delBgBtn').addEventListener('click', () => {
+        if (!appData.backgroundImage) { alert('当前未设置自定义背景图。'); return; }
+        showConfirmDialog('确定删除当前自定义背景图？', () => {
+            appData.backgroundImage = null;
+            saveData();
+            applyBackground();
+        });
+    });
+    bgFileInput.addEventListener('change', () => {
+        const f = bgFileInput.files && bgFileInput.files[0];
+        if (f) handleBgFile(f);
+    });
+
+    /* ---------- 通用 click 路由（删除 / ED +/- / 复制 / 编辑 / 状态） ---------- */
+    let statusClickTimer = null;
+    let statusClickPending = null;
+    const STATUS_CLICK_DELAY = 180;
+
+    document.addEventListener('click', function(e) {
+        /* 删除 */
+        if (e.target.classList.contains('delete-btn')) {
+            e.stopPropagation();
+            const delType = e.target.dataset.deleteType;
+            const delIndex = parseInt(e.target.dataset.deleteIndex);
+            const name = delType === 'account' ? '账号' : '副本';
+            showConfirmDialog(`确定删除该${name}？`, () => {
+                finishEditing();
+                if (delType === 'account') {
+                    appData.accounts.splice(delIndex, 1); appData.states.splice(delIndex, 1);
+                } else {
+                    appData.dungeons.splice(delIndex, 1);
+                    appData.states.forEach(row => row.splice(delIndex, 1));
+                }
+                saveData(); renderTable(); renderPluginBar();
+            });
+            return;
+        }
+        /* ED +/- */
+        if (e.target.classList.contains('ed-btn')) {
+            e.stopPropagation();
+            finishEditing();
+            const accIdx = parseInt(e.target.dataset.edAcc);
+            const op = e.target.dataset.edOp;
+            const acc = appData.accounts[accIdx];
+            if (!acc) return;
+            if (op === 'minus' && acc.ed > 0) acc.ed--;
+            if (op === 'plus' && acc.ed < ED_MAX) acc.ed++;
+            if (acc.ed < 0) acc.ed = 0;
+            if (acc.ed > ED_MAX) acc.ed = ED_MAX;
+            saveData(); renderTable(); renderPluginBar();
+            return;
+        }
+        /* 复制账号（左侧头格）：复制账号详情弹窗里"账号"字段的内容 */
+        if (e.target.classList.contains('copy-number-btn-left')) {
+            e.stopPropagation();
+            const accIdx = parseInt(e.target.dataset.copyAcc);
+            const acc = appData.accounts[accIdx]; if (!acc) return;
+            const val = acc.account || ''; if (!val) return;
+            copyToClipboard(val);
+            const btn = e.target; const oldText = btn.innerText;
+            btn.innerText = '✓'; btn.style.background = '#2b613c'; btn.style.color = '#d1ffdd';
+            const k = 'copy_' + accIdx;
+            if (copyTimers[k]) clearTimeout(copyTimers[k]);
+            copyTimers[k] = setTimeout(() => {
+                btn.innerText = oldText; btn.style.background = ''; btn.style.color = '';
+                delete copyTimers[k];
+            }, 1800);
+            return;
+        }
+        /* 点击"账号详情按钮" → 打开账号详情弹窗 */
+        const detailBtn = e.target.closest('button.account-detail-btn');
+        if (detailBtn && detailBtn.dataset.openAccDetail) {
+            e.stopPropagation();
+            const accIdx = parseInt(detailBtn.dataset.openAccDetail, 10);
+            openAccDetailModal(accIdx);
+            return;
+        }
+        /* 账号名编辑 */
+        const accountSpan = e.target.closest('.account-name');
+        if (accountSpan && e.target === accountSpan) {
+            e.stopPropagation();
+            const accIdx = parseInt(accountSpan.dataset.accountIdx);
+            startInlineEdit(accountSpan, {
+                initialValue: appData.accounts[accIdx]?.name || '',
+                type: 'text', align: 'left',
+                validator: (v) => (v && v.trim()) ? v.trim() : '未命名账号',
+                onSave: (v) => { appData.accounts[accIdx].name = v; saveData(); },
+                afterFinish: () => renderTable()
+            });
+            return;
+        }
+        /* 副本名编辑 */
+        const dungeonSpan = e.target.closest('.dungeon-name');
+        if (dungeonSpan && e.target === dungeonSpan) {
+            e.stopPropagation();
+            const dIdx = parseInt(dungeonSpan.dataset.dungeonIdx);
+            startInlineEdit(dungeonSpan, {
+                initialValue: appData.dungeons[dIdx] || '',
+                type: 'text', align: 'left',
+                validator: (v) => (v && v.trim()) ? v.trim() : '未命名副本',
+                onSave: (v) => { appData.dungeons[dIdx] = v; saveData(); },
+                afterFinish: () => renderTable()
+            });
+            return;
+        }
+        /* 备注编辑：记事本式，随时输入即时保存（不走失焦保存的老逻辑） */
+        const noteTd = e.target.closest('td.note-cell');
+        if (noteTd && e.target === noteTd) {
+            e.stopPropagation();
+            const accIdx = parseInt(noteTd.dataset.accountNote);
+            startLiveNoteEdit(noteTd, accIdx);
+            return;
+        }
+        /* ED 值编辑 */
+        const edSpan = e.target.closest('.ed-value');
+        if (edSpan && e.target === edSpan) {
+            e.stopPropagation();
+            const accIdx = parseInt(edSpan.dataset.edAcc);
+            startInlineEdit(edSpan, {
+                initialValue: appData.accounts[accIdx]?.ed || 0,
+                type: 'number', min: 0, max: ED_MAX, align: 'center',
+                validator: (v) => {
+                    let n = parseInt(v, 10);
+                    if (isNaN(n) || n < 0) n = 0;
+                    if (n > ED_MAX) n = ED_MAX;
+                    return n;
+                },
+                onSave: (n) => { appData.accounts[accIdx].ed = n; saveData(); },
+                afterFinish: () => { renderTable(); renderPluginBar(); }
+            });
+            return;
+        }
+        /* 状态单元格：单击切换 todo↔done；双击切换 skipped↔todo */
+        const td = e.target.closest('td');
+        if (td && td.classList.contains('status-cell')) {
+            e.stopPropagation();
+            const acc = parseInt(td.dataset.account);
+            const dgn = parseInt(td.dataset.dungeon);
+            if (isNaN(acc) || isNaN(dgn)) return;
+            if (statusClickTimer) {
+                clearTimeout(statusClickTimer); statusClickTimer = null;
+                statusClickPending = null; return;
+            }
+            statusClickPending = { acc, dgn };
+            statusClickTimer = setTimeout(() => {
+                if (statusClickPending) {
+                    finishEditing();
+                    const { acc, dgn } = statusClickPending;
+                    const cur = appData.states[acc][dgn];
+                    if (cur !== 'skipped')
+                        appData.states[acc][dgn] = (cur === 'done' ? 'todo' : 'done');
+                    saveData(); renderTable(); renderPluginBar();
+                    statusClickPending = null;
+                }
+                statusClickTimer = null;
+            }, STATUS_CLICK_DELAY);
+            return;
+        }
+    });
+
+    /* 双击：skipped 切换 */
+    document.addEventListener('dblclick', function(e) {
+        if (statusClickTimer) {
+            clearTimeout(statusClickTimer); statusClickTimer = null;
+            statusClickPending = null;
+        }
+        const td = e.target.closest('td');
+        if (td && td.classList.contains('status-cell')) {
+            e.preventDefault();
+            const acc = parseInt(td.dataset.account);
+            const dgn = parseInt(td.dataset.dungeon);
+            if (isNaN(acc) || isNaN(dgn)) return;
+            finishEditing();
+            const cur = appData.states[acc][dgn];
+            appData.states[acc][dgn] = (cur === 'skipped' ? 'todo' : 'skipped');
+            saveData(); renderTable(); renderPluginBar();
+        }
+    });
+
+    window.addEventListener('beforeunload', finishEditing);
+}
+
+/* 启动 */
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+
+})();
+</script>
+</body>
+</html>

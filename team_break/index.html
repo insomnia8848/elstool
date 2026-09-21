@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>破防计算器</title>
+<style>
+/* =========================================================
+ * 深色主题 UI —— 1:1 参考 周常记录.html 的样式风格
+ * ========================================================= */
+* {
+    box-sizing: border-box;
+    font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif;
+    user-select: none;
+}
+input, textarea { user-select: text; }
+
+/* ---------- 自定义背景层（最底层） ---------- */
+#bgLayer {
+    position: fixed;
+    inset: 0;
+    background: #0b0c0e center / cover no-repeat;
+    z-index: 0;
+    pointer-events: none;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    padding: 20px;
+    position: relative;
+    background: transparent;
+}
+
+/* ---------- 应用容器（半透明深色面板，整体居中） ---------- */
+.app-container {
+    position: relative;
+    z-index: 1;
+    max-width: 1125px;   /* 主界面整体宽度缩小25%（原1500px） */
+    width: 100%;
+    margin: auto;   /* 内容比窗口矮时上下左右居中；比窗口高时从顶部开始，不会被裁 */
+    background: rgba(26, 29, 33, 0.55);
+    backdrop-filter: blur(4px);
+    border-radius: 24px;
+    padding: 28px 24px;
+    box-shadow: 0 20px 35px rgba(0,0,0,0.6), 0 0 0 1px rgba(58,63,68,0.5) inset;
+}
+
+/* ---------- 标题行 ---------- */
+.title-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding: 0 8px;
+    flex-wrap: wrap;
+}
+.app-title {
+    font-size: 2.2rem;
+    font-weight: 400;
+    color: #e5c9a8;
+    text-shadow: 0 0 6px #bd9e6b;
+    letter-spacing: 2px;
+    background: rgba(43, 42, 38, 0.35);
+    border-radius: 8px 8px 0 0;
+    padding: 0 10px 5px;
+    margin: 0;
+}
+
+/* ---------- 通用按钮（胶囊） ---------- */
+.btn {
+    background: #2f343a;
+    border: 1px solid #4f555e;
+    color: #d3d7de;
+    font-size: 1rem;
+    padding: 8px 22px;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 6px rgba(10,12,14,0.6);
+    transition: 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn:hover {
+    background: #3f464f;
+    border-color: #7b838f;
+    color: #f0e6d2;
+    transform: translateY(-1px);
+}
+#openEditBtn { background: #2b3446; border-color: #566884; color: #d6e1f2; }
+#openEditBtn:hover { background: #3a4760; border-color: #7b93b8; }
+
+/* ---------- 模块卡片 ---------- */
+.module {
+    background: #171a1f;
+    border-radius: 20px;
+    border: 1px solid #3d4148;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+    overflow: hidden;
+}
+.module-head {
+    padding: 12px 18px;
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+}
+/* 模块标题后的小括号提示（如：结果仅供参考） */
+.head-note { font-size: 0.72em; font-weight: 400; opacity: 0.78; margin-left: 6px; }
+/* 蓝色框标题右侧的 一键清空 按钮 */
+.clear-btn {
+    margin-left: auto;
+    background: #3a2c2c; border: 1px solid #7a4444; color: #ff8a8a;
+    font-size: 0.8rem; font-weight: 500; letter-spacing: 0.5px;
+    padding: 4px 14px; border-radius: 40px; cursor: pointer;
+    transition: 0.15s;
+}
+.clear-btn:hover { background: #4c3232; border-color: #b06060; color: #fff; transform: translateY(-1px); }
+.module-body { padding: 14px; }
+
+/* 模块2=蓝  模块3=黄  模块4=红 */
+.mod-2 { border-color: #2f6fed66; }
+.mod-2 .module-head { background: linear-gradient(135deg, #2f6fed, #2452b8); }
+.mod-3 { border-color: #e6a70066; }
+.mod-3 .module-head { background: linear-gradient(135deg, #e6a700, #b88500); font-size: 0.9rem; letter-spacing: 0; line-height: 1.4; }
+.mod-4 { border-color: #e5484d66; margin-top: 14px; }
+.mod-4 .module-head { background: linear-gradient(135deg, #e5484d, #b2353a); }
+
+.layout-main { display: block; }
+/* 蓝框（队伍构成）自适应撑满，黄框（技能无视计算）固定窄宽：不到2张卡 */
+.main-cols { display: flex; gap: 14px; align-items: stretch; }
+.main-cols .mod-2 { flex: 1 1 auto; min-width: 0; }
+.main-cols .mod-3 { flex: 0 0 108px; }
+
+/* ---------- 队伍构成：四排 ---------- */
+.con-body { display: flex; flex-direction: column; gap: 12px; }
+.con-row { display: flex; align-items: stretch; gap: 10px; }
+.row-tag {
+    flex: 0 0 54px; display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; font-size: 0.95rem; font-weight: 700; letter-spacing: 2px;
+    color: #bfb195; background: #23262d; border: 1px solid #3a3f49;
+    user-select: none;
+}
+.row-tag.job     { color: #9ad5ff; background: #1c2a3d; border-color: #2f4a6e; }
+.row-tag.jobDark { color: #9ad5ff; background: #131c29; border-color: #2f4a6e; }
+.row-tag.buff     { color: #ffd27a; background: #3a2f1a; border-color: #6e562a; }
+.row-tag.buffDark { color: #ffd27a; background: #241d0f; border-color: #6e562a; }
+
+/* 第1/4排：选择条 —— 横向排开不换行，滚轮查看更多 */
+.sel-strip {
+    flex: 1 1 auto; min-width: 0;
+    display: flex; flex-wrap: nowrap; align-items: center; gap: 8px;
+    overflow-x: auto; padding: 8px 10px;
+    background: #1a1d22; border: 1px solid #33373e; border-radius: 12px;
+    min-height: 66px;
+}
+.sel-strip::-webkit-scrollbar { height: 10px; }
+.sel-strip::-webkit-scrollbar-track { background: #171a1f; border-radius: 8px; }
+.sel-strip::-webkit-scrollbar-thumb { background: #3f4650; border-radius: 8px; }
+.sel-strip::-webkit-scrollbar-thumb:hover { background: #575f6c; }
+.sel-strip .sel-card { margin: 0; flex: 0 0 auto; }
+
+/* 第2/3排：拖放框 */
+.dropzone.dz-h {
+    flex: 1 1 auto; min-width: 0;
+    display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start;
+    gap: 8px; min-height: 66px;
+    border: 2px dashed #4a5260;
+    border-radius: 12px;
+    background: #1a1d22;
+    padding: 8px 10px;
+    transition: all .15s;
+}
+.dropzone.over { border-color: #f5cd4a; background: #24272e; box-shadow: 0 0 0 3px rgba(245,205,74,.18); }
+.dz-h .chip { margin: 0; }
+.zone-empty { color: #5c6472; font-size: 0.85rem; }
+
+/* ---------- 黄框：技能无视计算（竖排单选勾选卡片） ---------- */
+.skill-strip {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    max-height: 336px; overflow-y: auto; padding: 4px 2px;
+}
+.skill-strip::-webkit-scrollbar { width: 8px; }
+.skill-strip::-webkit-scrollbar-track { background: transparent; }
+.skill-strip::-webkit-scrollbar-thumb { background: #3f4650; border-radius: 8px; }
+.skill-strip::-webkit-scrollbar-thumb:hover { background: #575f6c; }
+.skill-card {
+    flex: 0 0 auto;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    width: 50px; height: 50px;
+    background: #1e2126; border: 1px solid #3d4148; border-radius: 10px;
+    color: #ecdbbf; font-size: 0.9rem; font-weight: 600;
+    cursor: pointer; user-select: none; text-align: center;
+    transition: all .15s;
+}
+.skill-card:hover { border-color: #7a889c; transform: translateY(-1px); }
+.skill-card.on { border-color: #f5cd4a; background: #2c2a1f; color: #ffe9b0; box-shadow: 0 0 0 2px rgba(245,205,74,.25); }
+.skill-card .cname { padding: 0 4px; line-height: 1.15; word-break: break-all; }
+.skill-card .sval { font-size: 0.7rem; color: #e6a700; font-weight: 700; }
+
+/* ---------- 辅助（仅一个，打钩适用，放在“队伍总加成”行旁边） ---------- */
+.support-item {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 0.9rem; font-weight: 600; color: #ecdbbf;
+    cursor: pointer; padding: 5px 12px;
+    background: #1e2126; border: 1px solid #4a4f58; border-radius: 8px;
+    user-select: none; transition: border-color .15s;
+}
+.support-item:hover { border-color: #7a889c; }
+.support-item input { width: 16px; height: 16px; cursor: pointer; accent-color: #caa465; }
+
+/* ---------- 正方形卡片（选择条/拖放框通用 50×50） ---------- */
+.sel-card {
+    position: relative;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 50px; height: 50px; margin: 6px;
+    background: #1e2126; border: 1px solid #3d4148; border-radius: 10px;
+    color: #ecdbbf; box-shadow: 0 3px 8px rgba(0,0,0,.35);
+    cursor: grab; font-size: 0.9rem; font-weight: 600;
+    user-select: none; text-align: center; vertical-align: top;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+}
+.sel-card:hover { transform: translateY(-2px); border-color: #7a889c; box-shadow: 0 6px 14px rgba(0,0,0,.45); }
+.sel-card .cname { padding: 0 6px; line-height: 1.25; word-break: break-all; }
+/* HTML5 拖拽时原位置“幽灵”效果 */
+.sel-card.dragging { opacity: .35; }
+
+/* ---------- 计算框内条目（50×50，和选择卡片一样大） ---------- */
+.chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 50px; height: 50px; margin: 6px;
+    background: #22262e; border: 1px solid #4a4f58; border-radius: 10px;
+    font-size: 0.9rem; font-weight: 600; color: #ecdbbf;
+    box-shadow: 0 3px 8px rgba(0,0,0,.35); user-select: none;
+    cursor: grab; text-align: center; vertical-align: top;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+}
+.chip:hover { transform: translateY(-2px); border-color: #7a889c; box-shadow: 0 6px 14px rgba(0,0,0,.45); }
+.chip .cname { padding: 0 6px; line-height: 1.25; word-break: break-all; }
+.chip.pop { animation: pop .25s ease; }
+@keyframes pop { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.chip.dragging { opacity: .35; }
+
+/* ---------- 模块4 输出结果 ---------- */
+.out-rows { display: flex; flex-direction: column; gap: 10px; }
+.out-row {
+    display: flex; align-items: center; gap: 12px;
+    background: #1e2126; border: 1px solid #3d4148; border-radius: 14px;
+    padding: 12px 16px;
+}
+.out-row .label { width: 200px; font-size: 0.95rem; color: #bfb195; }
+.out-row .input {
+    width: 120px; padding: 6px 12px;
+    background: #1b1e24; border: 1px solid #b29c6b; color: #fad699;
+    font-size: 1.05rem; text-align: right; border-radius: 20px; outline: none;
+}
+.out-row .input:focus { border-color: #caa465; box-shadow: 0 0 0 2px rgba(202,164,101,.18); }
+.out-row .unit { color: #777; font-size: 0.9rem; }
+.out-row .right { margin-left: auto; font-size: 0.85rem; color: #9aa4b3; text-align: right; line-height: 1.5; }
+/* 破防明细小字：如 （VI15%+风球50%=总计57.5%破防） */
+.ob-note { color: #c9b98f; font-size: 0.9rem; padding-left: 6px; }
+.big { font-size: 1.35rem; font-weight: 700; }
+.big.blue { color: #9ad5ff; }
+.big.red { color: #ff8f8f; }
+.big.green { color: #8fe3b0; }
+.out-btn {
+    margin-left: auto;
+    background: #404754; border: 1px solid #7d8a9c; color: #f0e6d2;
+    font-size: 0.95rem; padding: 7px 22px; border-radius: 40px; cursor: pointer;
+    transition: 0.15s;
+}
+.out-btn:hover { background: #556073; border-color: #aab6c8; transform: translateY(-1px); }
+
+/* ---------- 一键套用防御百分比按钮 / 破防加成小胶囊 ---------- */
+.quick-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.q-btn {
+    background: #26303c; border: 1px solid #66788f; color: #bcd8f2;
+    font-size: 0.85rem; padding: 4px 12px; border-radius: 20px; cursor: pointer;
+    transition: .15s; user-select: none;
+}
+.q-btn:hover { background: #32445a; border-color: #9fc0e0; transform: translateY(-1px); }
+.bw-wrap {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #171a1f; border: 1px dashed #5a6472; border-radius: 20px;
+    padding: 3px 12px; font-size: 0.85rem; color: #bfb195;
+}
+.bw-wrap .big { font-size: 1.05rem; }
+.big.orange { color: #ffbe76; }
+
+/* ---------- 弹窗 ---------- */
+.modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    padding: 40px 20px;
+    z-index: 1000; backdrop-filter: blur(3px);
+}
+.hidden { display: none !important; }
+.modal {
+    background: #2b2f38; border: 2px solid #7f7259; border-radius: 24px;
+    max-width: 960px; width: 100%;
+    margin: auto;               /* 居中；弹窗超过窗口高度时自动贴顶，顶部不会被裁 */
+    flex-shrink: 0;
+    box-shadow: 0 20px 30px black; color: #ecdbbf;
+    max-height: 90vh; overflow: auto;
+}
+.modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; color: #f0dfbb; font-size: 1.1rem; letter-spacing: 1px;
+    border-bottom: 1px solid #4a4a56;
+    position: sticky; top: 0;    /* 滚动时标题栏和关闭按钮始终可见 */
+    background: #2b2f38; z-index: 2;
+}
+.modal-close { background: none; border: none; color: #bfb195; font-size: 1.6rem; cursor: pointer; line-height: 1; }
+.modal-close:hover { color: #fff; }
+/* 编辑弹窗：宽度只包住表格内容（fit-content），不撑满可用空间；高度仍用滚轮（90vh） */
+.modal-editor {
+    width: fit-content;
+    max-width: calc(100vw - 60px);
+}
+.modal-actions {
+    display: flex; gap: 10px; padding: 14px 24px;
+    border-bottom: 1px solid #3a3f49; align-items: center; flex-wrap: wrap;
+}
+.modal-actions .spacer { flex: 1; }
+.modal-actions .btn.primary { background: #3f5a6e; border-color: #6ea6c9; color: #d6f0ff; }
+.modal-actions .btn.primary:hover { background: #4c6c84; }
+.modal-actions .btn.export-btn { border-color: #4c7a5a; background: #2a3c33; color: #cdf2dc; }
+.modal-actions .btn.export-btn:hover { border-color: #77d19d; }
+.modal-actions .btn.import-btn { border-color: #766944; background: #3a3429; color: #ecdbbf; }
+.modal-actions .btn.import-btn:hover { border-color: #d5b76e; }
+
+/* ---------- 编辑表格（深色表格样式） ---------- */
+.table-section { padding: 14px 24px 2px; }
+.section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.section-head h3 { margin: 0; }
+/* 游戏版本：单击编辑，失焦保存 */
+.ver-field {
+    background: transparent; border: 1px dashed transparent; color: #c9b98f;
+    font-size: 0.85rem; padding: 4px 8px; border-radius: 8px; outline: none;
+    min-width: 150px; width: auto;
+}
+.ver-field:hover { border-color: #7a889c; }
+.ver-field:focus { background: #1b1e24; border-color: #caa465; color: #f0dfbb; }
+/* 表格标题 */
+.table-section h3 {
+    font-size: 0.95rem; color: #bfb195; letter-spacing: 1px;
+    margin: 0 0 10px; border-left: 3px solid #2f6fed; padding-left: 8px;
+}
+.tbl-wrap {
+    border-radius: 14px;
+    border: 1px solid #3d4148;
+    background: #131517;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.4);
+    margin-bottom: 14px;
+}
+.tbl {
+    width: auto;   /* 表格只占内容需要的宽度，不撑满可用空间 */
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+}
+.tbl th, .tbl td {
+    border: 1px solid #33373e;
+    padding: 0 6px;
+    height: 44px;
+    background: #1e2126;
+    color: #ddd;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.tbl th {
+    background: #262b33;
+    font-weight: 500;
+    color: #bfb195;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    padding: 0 10px;
+    position: relative;
+}
+/* 向下滚动时表头依然可见：吸在标题栏（56px高）下方 */
+.tbl thead th {
+    position: sticky; top: 56px;
+    z-index: 1;
+    box-shadow: 0 2px 5px rgba(0,0,0,.28);
+}
+.tbl th:hover { background: #2f3540; color: #f0dfbb; }
+.tbl th .sort-arrow {
+    display: inline-block;
+    width: 14px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #f0dfbb;
+    opacity: 0;
+    transition: opacity .15s;
+}
+.tbl th.sort-active { color: #fff; background: #353c47; }
+.tbl th.sort-active .sort-arrow { opacity: 1; }
+.tbl input {
+    width: 6ch;   /* 按字号自适应的小宽度；不能写100%，否则会按input默认宽度(~150px)把列撑得很宽 */
+    border: none; outline: none; background: transparent;
+    text-align: center; font-size: 0.95rem; color: #efdbbe;
+    padding: 6px 4px;
+}
+.tbl .row-name input { font-weight: 600; text-align: left; width: 8ch; }
+.tbl input:focus { background: #2d3038; border-radius: 4px; }
+.tbl .del {
+    cursor: pointer; color: #ff8a8a; background: none; border: none;
+    font-size: 1rem; font-weight: bold; padding: 2px 8px; border-radius: 6px;
+}
+.tbl .del:hover { background: #3a2626; color: #fff; }
+.tbl tr:hover td { background: #23262d; }
+
+/* 隐藏 number 输入框上下增减按钮 */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+/* ---------- 加成详情弹窗 ---------- */
+.detail-item { padding: 9px 0; border-bottom: 1px dashed #4a4a56; font-size: 1rem; }
+.detail-item:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+
+<!-- 自定义背景层（独立最底层） -->
+<div id="bgLayer"></div>
+
+<div class="app-container">
+
+    <!-- 标题行：模块1按钮在左上方 -->
+    <div class="title-row">
+        <button class="btn" id="openEditBtn">职业/加成编辑</button>
+        <h1 class="app-title">破防计算器</h1>
+    </div>
+
+    <!-- 队伍构成（蓝）+ 技能无视计算（黄）并排 -->
+    <main class="layout-main">
+        <div class="main-cols">
+        <section class="module mod-2">
+            <div class="module-head">队伍构成<button class="clear-btn" id="clearBtn">一键清空</button></div>
+            <div class="module-body">
+                <div class="con-body">
+                    <div class="con-row">
+                        <div class="row-tag job">职业</div>
+                        <div class="sel-strip" id="jobStrip"></div>
+                    </div>
+                    <div class="con-row">
+                        <div class="row-tag jobDark">职业位</div>
+                        <div class="dropzone dz-h" id="zoneJob" data-accept="job">
+                            <div class="zone-items" id="jobItems"></div>
+                            <div class="zone-empty" id="jobEmpty">从第一排拖入职业…</div>
+                        </div>
+                    </div>
+                    <div class="con-row">
+                        <div class="row-tag buffDark">加成位</div>
+                        <div class="dropzone dz-h" id="zoneBuff" data-accept="buff">
+                            <div class="zone-items" id="buffItems"></div>
+                            <div class="zone-empty" id="buffEmpty">从第四排拖入加成…</div>
+                        </div>
+                    </div>
+                    <div class="con-row">
+                        <div class="row-tag buff">加成</div>
+                        <div class="sel-strip" id="buffStrip"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 黄框：技能无视计算（技能单选勾选，竖排滚轮） -->
+        <section class="module mod-3">
+            <div class="module-head">技能无视计算</div>
+            <div class="module-body">
+                <div class="skill-strip" id="skillStrip"></div>
+            </div>
+        </section>
+        </div>
+    </main>
+
+    <!-- 模块4 红色：输出结果 -->
+    <section class="module mod-4">
+        <div class="module-head">输出结果<span class="head-note">防御计算公式套用：减伤 = 面板防御 ÷ (面板防御 + 4150) × 100%</span><span class="head-note">（结果仅供参考）</span></div>
+        <div class="module-body">
+            <div class="out-rows">
+                <div class="out-row">
+                    <div class="label">目标当前防御百分比</div>
+                    <input type="number" class="input" id="targetDefPct" step="0.01" min="0" max="100" value="83.91">
+                    <span class="unit">%</span>
+                    <div class="quick-row">
+                        <button class="q-btn" data-v="95.86">95.86%</button>
+                        <button class="q-btn" data-v="83.91">83.91%</button>
+                        <button class="q-btn" data-v="71.92">71.92%</button>
+                        <button class="q-btn" data-v="59.94">59.94%</button>
+                    </div>
+                    <div class="right">面板数值<br><span id="targetPanel" class="big blue">0</span></div>
+                </div>
+                <div class="out-row">
+                    <div class="label">破防后减伤剩余</div>
+                    <span id="reducedDef" class="big red">0%</span>
+                    <span id="reducedBreakdown" class="ob-note"></span>
+                    <div class="right">面板数值<br><span id="reducedPanel" class="big blue">0</span></div>
+                </div>
+                <div class="out-row">
+                    <div class="label">队伍BUFF总加成</div>
+                    <span id="totalBonus" class="big green">0%</span>
+                    <span class="bw-wrap">破防加成<span id="breakBonus" class="big orange">0%</span></span>
+                    <span class="bw-wrap">技能无视加成<span id="skillBreakBonus" class="big orange">0%</span></span>
+                    <label class="support-item" id="supportWrap">
+                        <input type="checkbox" id="supportToggle">
+                        <span id="supportName"></span>
+                    </label>
+                    <button id="detailBtn" class="out-btn">详情</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 模块1 编辑弹窗 -->
+    <div id="editModal" class="modal-overlay hidden">
+        <div class="modal modal-editor">
+            <div class="modal-header">
+                <span>职业 / 加成编辑</span>
+                <button class="modal-close" id="closeEdit">×</button>
+            </div>
+            <div class="modal-actions">
+                <button class="btn primary" id="addJob">添加职业</button>
+                <span class="spacer"></span>
+                <button class="btn export-btn" id="exportBtn">导出配置</button>
+                <button class="btn import-btn" id="importBtn">导入配置</button>
+                <input type="file" id="importFile" accept=".json" hidden>
+            </div>
+            <div class="table-section"><div class="section-head"><h3>职业</h3><input class="ver-field" id="verField" title="游戏版本（单击编辑，失焦保存）"></div><div class="tbl-wrap"><div id="jobTableWrap"></div></div></div>
+            <div class="table-section"><div class="section-head"><h3>加成</h3><button class="btn primary" id="addBuff">添加加成</button></div><div class="tbl-wrap"><div id="buffTableWrap"></div></div></div>
+            <div class="table-section"><h3>辅助</h3><div class="tbl-wrap"><div id="supportTableWrap"></div></div></div>
+            <div class="table-section"><div class="section-head"><h3>技能</h3><button class="btn primary" id="addSkill">添加技能</button></div><div class="tbl-wrap"><div id="skillTableWrap"></div></div></div>
+        </div>
+    </div>
+
+    <!-- 加成详情弹窗 -->
+    <div id="detailModal" class="modal-overlay hidden">
+        <div class="modal" style="max-width:460px; border-color:#5c8a6e;">
+            <div class="modal-header">
+                <span>加成详情</span>
+                <button class="modal-close" id="closeDetail">×</button>
+            </div>
+            <div class="module-body" id="detailContent" style="padding:18px 24px;"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+/* =====================================================================
+ * 破防计算器
+ * 计算公式：
+ *   1. 减伤 = 面板防御 / (面板防御 + 4150) × 100%
+ *   2. 破防：先把目标防御面板乘算后再转成减伤；多个破防互相乘算
+ *      例：20% + 20% 破防 → 剩余防御 = 0.8 × 0.8 = 0.64
+ *   3. 普通加成：同一种加成之间加算，不同加成之间乘算
+ *
+ * 拖拽实现：HTML5 原生 draggable（与周常记录.html 同款）
+ *   关键点：dropzone 的 dragover 必须 e.preventDefault()，否则 drop 不会触发
+ * ===================================================================== */
+
+/* ---------- 常量 ---------- */
+const STORAGE_KEY = '破防计算器_data_v9';   // 职业全部显示+按角色卡片配色，移除显示/隐藏按钮，版本号+1让旧存档作废
+const MAGIC = '破防计算器';
+
+const DEFAULT_COLUMNS = [
+  { id: '破防',     name: '破防' },
+  { id: '攻击',     name: '攻击' },
+  { id: '技伤',     name: '全技伤' },
+  { id: '单技伤',   name: '单技伤' },
+  { id: '全增',     name: '全增' },
+  { id: '被爆伤',   name: '被爆伤' },
+  { id: '攻击易伤', name: '攻易伤' },
+  { id: '全易伤',   name: '全易伤' },
+  { id: '王伤',     name: '王伤' },
+  { id: '爆伤',     name: '爆伤*' }   // 移到最后一列；不参与BUFF总加成，仅在详情里列出
+];
+
+/* ---------- 默认示例数据（内容来自 2026-8-12国服平衡.json） ---------- */
+const DEFAULT_DATA = {
+  version: '2026-8-12国服平衡',   // 游戏版本：职业表标题旁可修改，导出时用作文件名
+  columns: DEFAULT_COLUMNS,
+  occupations: [
+    { name:'KE',  破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'RM',  破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'IM',    攻击易伤:20,                                             visible:true },
+    { name:'GE',    破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'AS',    攻击:20,                                                 visible:true },
+    { name:'OS',    破防:20,   攻击:12,                                       visible:true },
+    { name:'MM',    破防:21,   攻击:12,                                       visible:true },
+    { name:'LA',    破防:15,   攻击:5, 爆伤:5, 全易伤:5,                       visible:true },
+    { name:'AN',    破防:19.5, 攻击:12,                                       visible:true },
+    { name:'DaB',   被爆伤:10, 攻击易伤:10,                                   visible:true },
+    { name:'TW',    破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'PR',    破防:10,   攻击:5, 全增:7,                                visible:true  },
+    { name:'FB',    破防:19.5, 攻击易伤:12,                                   visible:true },
+    { name:'RH',    破防:20,   被爆伤:12,                                     visible:true },
+    { name:'NI',    攻击:10,   攻击易伤:12,                                   visible:true },
+    { name:'RE',    破防:10,   被爆伤:4, 攻击易伤:8, 单技伤:15,                visible:true },
+    { name:'CU',    破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'CE',    技伤:12,   攻击易伤:12,                                   visible:true },
+    { name:'CS',    破防:20,   被爆伤:12,                                     visible:true },
+    { name:'CA',    破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'CC',    破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'FP',    攻击:20,                                                 visible:true },
+    { name:'CET',   破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'VI',    破防:20,   攻击易伤:12,                                   visible:true  },
+    { name:'BR',    破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'SH',    破防:20,   攻击易伤:7, 单技伤:6,                          visible:true  },
+    { name:'ES',    破防:20,   技伤:5, 攻击易伤:7,                            visible:true },
+    { name:'FL',    破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'BQ',    被爆伤:19.7,                                              visible:true },
+    { name:'AD',    破防:25,   攻击:5, 攻击易伤:7, 王伤:3,                     visible:true },
+    { name:'DB',    被爆伤:20,                                               visible:true },
+    { name:'DN',    破防:10,   攻击:8, 爆伤:10, 攻击易伤:3,                    visible:true },
+    { name:'MP',    破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'CT',    被爆伤:8,  攻击易伤:12,                                   visible:true },
+    { name:'IN',    破防:20,                                                 visible:true },
+    { name:'DA',    破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'TB',    破防:10,   攻击:10, 攻击易伤:8,                           visible:true },
+    { name:'BM',    破防:20,   被爆伤:12,                                     visible:true },
+    { name:'MN',    破防:20,   攻击易伤:12,                                   visible:true },
+    { name:'PO',    破防:20,   攻击:8, 攻击易伤:8,                            visible:true },
+    { name:'RI',    攻击:20,                                                 visible:true },
+    { name:'HE',    破防:20,   爆伤:16,                                       visible:true },
+    { name:'BG',    破防:20,   攻击:6, 技伤:5,                                visible:true },
+    { name:'EW',    破防:20,   攻击易伤:12,                                   visible:true  },
+    { name:'NL',    破防:10,   攻击:20,                                       visible:true },
+    { name:'TP',    攻击易伤:20,                                              visible:true  },
+    { name:'LI',    被爆伤:12, 王伤:8,                                        visible:true },
+    { name:'CEL',   破防:15,   攻击:7, 全增:6, 被爆伤:4,                       visible:true },
+    { name:'MO',    攻击:20,                                                 visible:true },
+    { name:'GB',    攻击:20,                                                 visible:true  },
+    { name:'AC',    破防:20,                                                 visible:true },
+    { name:'MI',    破防:20,   被爆伤:12.5,                                   visible:true  }
+  ],
+  bonuses: [
+    { name: '香炉', 破防: 15 },
+    { name: '94',   破防: 48 },
+    { name: '风球', 破防: 50 }
+  ],
+  supports: [
+    { name: '辅助', 破防: 15, 攻击: 12, 技伤: 12 }
+  ],
+  skills: []   // 技能：只有 无视% 一个属性，算法同破防（乘算）
+};
+
+/* ---------- 职业卡片配色（按用户指定分组），名字显示为白色 ---------- */
+const JOB_COLORS = {
+  KE:'rgb(200,30,40)',  RM:'rgb(200,30,40)',  IM:'rgb(200,30,40)',  GE:'rgb(200,30,40)',
+  AS:'rgb(120,40,180)', OS:'rgb(120,40,180)', MM:'rgb(120,40,180)', LA:'rgb(120,40,180)',
+  AN:'rgb(80,160,30)',  DaB:'rgb(80,160,30)', TW:'rgb(80,160,30)',  PR:'rgb(80,160,30)',
+  FB:'rgb(60,60,60)',   RH:'rgb(60,60,60)',   NI:'rgb(60,60,60)',   RE:'rgb(60,60,60)',
+  CU:'rgb(240,130,170)',CE:'rgb(240,130,170)',CS:'rgb(240,130,170)',CA:'rgb(240,130,170)',
+  CC:'rgb(80,190,240)', FP:'rgb(80,190,240)', CET:'rgb(80,190,240)',
+  VI:'rgb(240,120,20)', BR:'rgb(240,120,20)', SH:'rgb(240,120,20)',
+  ES:'rgb(140,20,40)',  FL:'rgb(140,20,40)',  BQ:'rgb(140,20,40)',  AD:'rgb(140,20,40)',
+  DB:'rgb(100,40,160)', DN:'rgb(100,40,160)', MP:'rgb(100,40,160)',
+  CT:'rgb(30,50,160)',  IN:'rgb(30,50,160)',  DA:'rgb(30,50,160)',
+  TB:'rgb(240,200,80)', BM:'rgb(240,200,80)', MN:'rgb(240,200,80)', PO:'rgb(240,200,80)',
+  RI:'rgb(30,180,170)', HE:'rgb(30,180,170)', BG:'rgb(30,180,170)',
+  EW:'rgb(210,30,100)', NL:'rgb(210,30,100)', TP:'rgb(210,30,100)',
+  LI:'rgb(70,50,130)',  CEL:'rgb(70,50,130)', MO:'rgb(70,50,130)',
+  GB:'rgb(30,180,80)',  AC:'rgb(30,180,80)',  MI:'rgb(30,180,80)'
+};
+
+/* ---------- 状态 ---------- */
+const savedRaw = loadState();   // 读出的原始存档（含 sel 拖入状态，用于恢复）
+let state = savedRaw || JSON.parse(JSON.stringify(DEFAULT_DATA));
+if (!state.version) state.version = '2026-8-12国服平衡';   // 旧存档没有版本号时补默认值
+if (!Array.isArray(state.skills)) state.skills = [];        // 旧存档没有技能表时补空数组
+let uidCounter = 1000;
+let sel = { job: [], buff: [], skillUid: null };   // skillUid: 当前勾选的技能（单选）
+let detailData = {};
+
+/* ---------- 排序状态 ---------- */
+const sortStates = {
+  occupations: { key: null, order: 0 },
+  bonuses:     { key: null, order: 0 },
+  supports:    { key: null, order: 0 }
+};
+
+/* ---------- 当前拖拽数据（HTML5 dragstart/drop 之间通过闭包共享） ---------- */
+let dragPayload = null;   // {type, uid}
+
+/* ---------- 工具函数 ---------- */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function fmtNum(n){
+  if (!isFinite(n)) return '∞';
+  if (Math.abs(n) < 0.0000001) return '0';
+  return (Math.round(n*100)/100).toFixed(2).replace(/\.?0+$/,'');
+}
+function fmtPanel(n){ return !isFinite(n) ? '∞' : fmtNum(n); }
+
+/* uid 计数器同步：读档/导入后必须重新对齐，防止新条目撞上已有条目的 uid
+   （旧版 uidCounter 每次从1000重新开始，新增的第1个条目会和第1个职业同为 u1000，
+     导致编辑新加成时写进了第一个职业 —— 这就是“新增加成变成编辑职业”的元凶） */
+function syncUidCounter(){
+  let mx = 999;
+  [state.occupations, state.bonuses, state.supports, state.skills].forEach(arr=>{
+    arr.forEach(it=>{
+      if (it && it.uid){
+        const m = String(it.uid).match(/u(\d+)$/);
+        if (m){
+          const n = parseInt(m[1], 10);
+          if (isFinite(n) && n > mx) mx = n;
+        }
+      }
+    });
+  });
+  uidCounter = mx + 1;
+}
+
+function ensureUids(){
+  const seen = {};   // 重复检测：撞车（u1000等）从第二个起强制重新分配新uid
+  [state.occupations, state.bonuses, state.supports, state.skills].forEach(arr=>{
+    arr.forEach(it=>{
+      if (it.uid && !seen[it.uid]){ seen[it.uid] = true; return; }
+      it.uid = 'u' + (uidCounter++);
+    });
+  });
+}
+
+// 列结构同步：用默认列结构刷新（按 id 保住已有数值），自动补上新增列
+function syncColumns(){
+  state.columns = DEFAULT_COLUMNS.map(c=>({ id:c.id, name:c.name }));
+}
+
+// 补齐缺失的列字段为0（导入/改动列后使用）；visible 默认 true（在黄色框显示）
+// 所有属性值限制 0~100（导入时也统一收紧）
+function normalizeItems(){
+  const cols = state.columns.map(c=>c.id);
+  [state.occupations, state.bonuses, state.supports, state.skills].forEach(arr=>{
+    arr.forEach(it=>{
+      cols.forEach(cid=>{
+        if (it[cid] === undefined){ it[cid] = 0; return; }
+        const n = Number(it[cid]);
+        it[cid] = isFinite(n) ? Math.min(Math.max(n,0),100) : 0;
+      });
+      it.visible = true;   // 全部职业固定显示（显示/隐藏按钮已移除）
+    });
+  });
+  // 按职业名分派卡片配色
+  state.occupations.forEach(it=>{ it.color = JOB_COLORS[it.name] || ''; });
+  // 技能单独规范化：只有 无视 一个属性，限制 0~100
+  state.skills.forEach(it=>{
+    if (typeof it.name !== 'string' || !it.name) it.name = '技能';
+    const n = Number(it.无视);
+    it.无视 = isFinite(n) ? Math.min(Math.max(n,0),100) : 0;
+  });
+}
+function normalizeSupports(){
+  if (!Array.isArray(state.supports) || state.supports.length === 0){
+    const item = { name: '辅助' };
+    state.columns.forEach(c=>{ item[c.id] = 0; });
+    item.uid = 'u' + (uidCounter++);
+    state.supports = [item];
+  } else {
+    state.supports = [state.supports[0]];
+  }
+}
+function findItem(uid){
+  const maps = [['occupations',state.occupations],['bonuses',state.bonuses],['supports',state.supports],['skills',state.skills]];
+  for (const [t,arr] of maps){ const it = arr.find(x=>x.uid===uid); if (it) return {type:t, item:it}; }
+  return null;
+}
+
+/* 恢复上次拖入的职业/加成（重新打开不清空）；条目已被删除的不恢复，职业位最多8个 */
+function restoreSel(saved){
+  sel.job = []; sel.buff = []; sel.skillUid = null;
+  const s = (saved && saved.sel) ? saved.sel : null;
+  if (s && Array.isArray(s.job))  s.job.forEach(uid=>{ const f = findItem(uid); if (f) sel.job.push(f.item); });
+  if (s && Array.isArray(s.buff)) s.buff.forEach(uid=>{ const f = findItem(uid); if (f) sel.buff.push(f.item); });
+  if (sel.job.length > 8) sel.job = sel.job.slice(0, 8);
+  if (s && s.skill && findItem(s.skill)) sel.skillUid = s.skill;   // 恢复勾选的技能
+}
+
+/* ---------- 本地保存 / 读取 ---------- */
+function saveState(){
+  const d = { _magic: MAGIC, _v:1, version:state.version, columns:state.columns, occupations:state.occupations, bonuses:state.bonuses, supports:state.supports, skills:state.skills,
+    sel: { job: sel.job.map(x=>x.uid), buff: sel.buff.map(x=>x.uid), skill: sel.skillUid } };   // 记录拖入/勾选后的状态，重新打开不清空
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch(e){}
+}
+function loadState(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw){
+      const d = JSON.parse(raw);
+      if (d && d._magic === MAGIC && Array.isArray(d.occupations)) return d;
+    }
+  } catch(e){}
+  return null;
+}
+
+/* ---------- 渲染：模块3 选择区（正方形卡片） ---------- */
+function cardHtml(type, item){
+  // 职业卡片按分组配色、名字白色；加成卡片保持原样式
+  const st = (type === 'job' && item.color)
+    ? ' style="background:'+item.color+';border-color:'+item.color+';color:#fff"'
+    : '';
+  return '<span class="sel-card" draggable="true" data-type="'+type+'" data-uid="'+item.uid+'"'+st+'>' +
+    '<span class="cname">'+esc(item.name)+'</span>' +
+  '</span>';
+}
+
+function renderSelector(){
+  // 拖入计算框的条目从选择条消失（拖出删除后恢复显示）；职业全部显示
+  const jobs  = state.occupations.filter(it => !sel.job.some(x=>x.uid===it.uid));
+  const buffs = state.bonuses.filter(it => !sel.buff.some(x=>x.uid===it.uid));
+  const jobHtml  = jobs.length  ? jobs.map(it=>cardHtml('job',it)).join('')  : '<span class="zone-empty">暂无</span>';
+  const buffHtml = buffs.length ? buffs.map(it=>cardHtml('buff',it)).join('') : '<span class="zone-empty">已全部拖入</span>';
+  document.getElementById('jobStrip').innerHTML = jobHtml;
+  document.getElementById('buffStrip').innerHTML = buffHtml;
+  renderSkillStrip();   // 技能卡片（竖排单选）
+  // 绑定 HTML5 原生拖拽事件（卡片每次重绘后重新绑定）
+  bindCardDrag();
+}
+
+/* ---------- 渲染：技能卡片竖排（单选勾选） ---------- */
+function renderSkillStrip(){
+  const box = document.getElementById('skillStrip');
+  if (!box) return;
+  if (!state.skills.length){
+    box.innerHTML = '<span class="zone-empty">暂无技能</span>';
+    return;
+  }
+  box.innerHTML = state.skills.map(it=>
+    '<span class="skill-card'+(sel.skillUid===it.uid?' on':'')+'" data-uid="'+it.uid+'">' +
+      '<span class="cname">'+esc(it.name)+'</span>' +
+      '<span class="sval">'+fmtNum(it.无视||0)+'%</span>' +
+    '</span>'
+  ).join('');
+  // 单选：点击勾选、再点取消；勾选新的自动取消旧的
+  box.querySelectorAll('.skill-card').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      const uid = c.dataset.uid;
+      sel.skillUid = (sel.skillUid === uid) ? null : uid;
+      saveState(); renderSkillStrip(); recompute();
+    });
+  });
+}
+
+/* ---------- 渲染：模块2 计算框 ---------- */
+function boxChipHtml(item, type){
+  // 职业条目同样按分组配色、名字白色
+  const st = (type === 'job' && item.color)
+    ? ' style="background:'+item.color+';border-color:'+item.color+';color:#fff"'
+    : '';
+  return '<span class="chip pop" draggable="true" data-uid="'+item.uid+'" title="拖出删除"'+st+'>' +
+    '<span class="cname">'+esc(item.name)+'</span>' +
+  '</span>';
+}
+
+function renderBoxes(){
+  const jobBox = document.getElementById('jobItems');
+  const buffBox = document.getElementById('buffItems');
+  jobBox.innerHTML  = sel.job.map(it=>boxChipHtml(it,'job')).join('');
+  buffBox.innerHTML = sel.buff.map(it=>boxChipHtml(it,'buff')).join('');
+  document.getElementById('jobEmpty').style.display  = sel.job.length  ? 'none' : 'block';
+  document.getElementById('buffEmpty').style.display = sel.buff.length ? 'none' : 'block';
+  bindChipDrag();
+}
+
+// 渲染辅助打钩区域（仅一个辅助）
+function renderSupport(){
+  const sup = state.supports[0];
+  if (sup){
+    document.getElementById('supportWrap').style.display = 'inline-flex';
+    document.getElementById('supportName').textContent = sup.name;
+  } else {
+    document.getElementById('supportWrap').style.display = 'none';
+  }
+}
+
+/* =====================================================================
+ *  HTML5 原生拖拽实现（与周常记录.html 同款）
+ *  ⚠️ 必须在 dragover 里调用 e.preventDefault()，否则 drop 不会触发
+ * ===================================================================== */
+function bindCardDrag(){
+  const cards = document.querySelectorAll('.sel-strip .sel-card');
+  cards.forEach(card=>{
+    card.addEventListener('dragstart', function(e){
+      // 当前拖拽类型 + uid
+      dragPayload = { type: this.dataset.type, uid: this.dataset.uid };
+      this.classList.add('dragging');
+      try {
+        // 标准写法：设置一些 text 作后备，实际逻辑走 dragPayload
+        e.dataTransfer.setData('text/plain', this.dataset.type + '|' + this.dataset.uid);
+        e.dataTransfer.effectAllowed = 'copy';
+      } catch(_){}
+    });
+    card.addEventListener('dragend', function(e){
+      this.classList.remove('dragging');
+      dragPayload = null;
+      // 清理拖放框高亮
+      document.querySelectorAll('.dropzone.over').forEach(z=>z.classList.remove('over'));
+    });
+  });
+}
+
+/* ---------- 横向选择条：鼠标滚轮横向滚动（纵向滚轮转成横向） ---------- */
+function bindStripWheel(){
+  document.querySelectorAll('.sel-strip').forEach(strip=>{
+    strip.addEventListener('wheel', e=>{
+      // 内容横向溢出时才接管滚轮；否则保持默认行为（如页面滚动会先经过这里）
+      if (strip.scrollWidth > strip.clientWidth + 1){
+        e.preventDefault();
+        strip.scrollLeft += (e.deltaY !== 0 ? e.deltaY : e.deltaX);
+      }
+    }, { passive: false });
+  });
+}
+
+function bindDropZones(){
+  const zones = document.querySelectorAll('.dropzone');
+  zones.forEach(zone=>{
+    zone.addEventListener('dragover', function(e){
+      e.preventDefault();                       // ⚠️ 核心：必须阻止默认才能让 drop 触发
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = (dragPayload && dragPayload.fromBox) ? 'move' : 'copy';
+      // 校验类型是否符合（框内条目拖出不参与高亮/放入）
+      if (dragPayload && !dragPayload.fromBox){
+        const accept = this.dataset.accept.split(',');
+        if (accept.includes(dragPayload.type)){
+          this.classList.add('over');
+        }
+      }
+    });
+    zone.addEventListener('dragleave', function(e){
+      // 只有真正离开该区域（而不是进入子元素）才清除高亮
+      if (!this.contains(e.relatedTarget)){
+        this.classList.remove('over');
+      }
+    });
+    zone.addEventListener('drop', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      this.classList.remove('over');
+      if (!dragPayload || dragPayload.fromBox) return;   // 框内条目拖出：由 dragend 统一删除
+      const accept = this.dataset.accept.split(',');
+      if (!accept.includes(dragPayload.type)) return;
+      const found = findItem(dragPayload.uid);
+      if (!found) return;
+      /* 关键修复：按“当前落点框”决定放进职业位还是加成位，
+         而不是用数据表名（'occupations'/'bonuses'），否则所有条目都会进加成位 */
+      const bucket = (this.dataset.accept === 'job') ? 'job' : 'buff';
+      pushItem(bucket, found.item);
+    });
+  });
+}
+
+/* ---------- 框内条目：拖出任意地方 = 删除 ---------- */
+function bindChipDrag(){
+  document.querySelectorAll('.dropzone .chip').forEach(chip=>{
+    chip.addEventListener('dragstart', function(e){
+      dragPayload = { uid: this.dataset.uid, fromBox: true };
+      this.classList.add('dragging');
+      try {
+        e.dataTransfer.setData('text/plain', 'box|' + this.dataset.uid);
+        e.dataTransfer.effectAllowed = 'move';
+      } catch(_){}
+    });
+    chip.addEventListener('dragend', function(){
+      const uid = this.dataset.uid;
+      dragPayload = null;
+      document.querySelectorAll('.dropzone.over').forEach(z=>z.classList.remove('over'));
+      removeFromBox(uid);   // 拖出即删除
+    });
+  });
+}
+
+/* ---------- 放入/移除计算框 ---------- */
+function pushItem(type, item){
+  if (type === 'job'){
+    if (sel.job.length >= 8) return;              // 职业位最多 8 个
+    if (sel.job.some(x=>x.uid===item.uid)) return;
+    sel.job.push(item);
+  } else {
+    if (sel.buff.some(x=>x.uid===item.uid)) return;
+    sel.buff.push(item);
+  }
+  renderBoxes(); renderSelector();   // 拖入后从选择条消失
+  saveState(); recompute();
+}
+function removeFromBox(uid){
+  sel.job  = sel.job.filter(x=>x.uid!==uid);
+  sel.buff = sel.buff.filter(x=>x.uid!==uid);
+  renderBoxes(); renderSelector();   // 拖出删除后恢复显示
+  saveState(); recompute();
+}
+
+// 事件委托：表格删除按钮
+document.addEventListener('click', e=>{
+  const del = e.target.closest('.del');
+  if (del){ removeItem(del.dataset.type, del.dataset.uid); return; }
+});
+
+/* ---------- 计算：模块4 输出 ---------- */
+function recompute(){
+  // 1) 目标当前防御百分比（即减伤百分比）→ 反推面板数值
+  const inp = parseFloat(document.getElementById('targetDefPct').value);
+  const R = isFinite(inp) ? Math.min(Math.max(inp,0), 99.999999) : 0;
+  const D = 4150 * R / (100 - R);
+  document.getElementById('targetPanel').textContent = fmtPanel(D);
+
+  // 2) 破防：所有破防乘算 → 剩余面板 → 转减伤
+  const items = sel.job.concat(sel.buff);
+  if (document.getElementById('supportToggle').checked && state.supports[0]) items.push(state.supports[0]);
+  const breakId = state.columns[0].id;
+  let rem = 1;
+  const breakParts = [];
+  items.forEach(it=>{
+    const b = it[breakId] || 0;
+    if (b > 0){
+      rem *= Math.max(0, 1 - b/100);
+      breakParts.push({ name: it.name, v: b });   // 记录破防来源
+    }
+  });
+  const D2 = D * rem;
+  const dr = Math.max(0, D2 / (D2 + 4150) * 100);
+  document.getElementById('reducedDef').textContent = fmtNum(dr) + '%';
+  // 明细：例如 （VI15%+风球50%=总计57.5%破防），57.5% = 1 - (0.85×0.5) = 乘算后的总破防
+  const breakText = breakParts.length
+    ? '（' + breakParts.map(p=>p.name+fmtNum(p.v)+'%').join('+') + '=总计' + fmtNum((1-rem)*100) + '%破防）'
+    : '';
+  document.getElementById('reducedBreakdown').textContent = breakText;
+  document.getElementById('reducedPanel').textContent = fmtPanel(D2);
+
+  // 2.5) 技能无视：算法同破防，在破防结果上继续乘算（单选技能，未勾选时为0）
+  const skillItem = sel.skillUid ? findItem(sel.skillUid) : null;
+  const sPct = skillItem ? (skillItem.item.无视 || 0) : 0;
+  const rem2 = sPct > 0 ? rem * Math.max(0, 1 - sPct/100) : rem;
+  const D3 = D * rem2;
+  const dr2 = sPct > 0 ? Math.max(0, D3 / (D3 + 4150) * 100) : dr;
+  // 技能无视加成（用户选定算法：破防后额外提升）= ( (1-dr2) / (1-dr) - 1 ) × 100%
+  const defBefore2 = Math.max(0, 1 - dr/100);
+  const defAfter2  = Math.max(0, 1 - dr2/100);
+  const skillGain = defBefore2 > 0 ? (defAfter2 / defBefore2 - 1) * 100 : 0;
+  document.getElementById('skillBreakBonus').textContent = fmtNum(skillGain) + '%';
+
+  // 3) 普通加成：同项加算，异项乘算 → 总加成；爆伤* 不参与总加成，但保留进详情
+  const cat = {};
+  const bonusCols = state.columns.slice(1);                          // 详情里全部列出（含 爆伤*）
+  const effectCols = bonusCols.filter(c=>c.id !== '爆伤');            // 参与BUFF总加成计算（爆伤* 除外）
+  items.forEach(it=>{
+    bonusCols.forEach(c=>{
+      const v = it[c.id] || 0;
+      if (v > 100) v = 100;                        // 属性上限100
+      if (v > 0){
+        if (!cat[c.id]) cat[c.id] = { name:c.name, sum:0, parts:[] };
+        cat[c.id].sum += v;
+        cat[c.id].parts.push({ name: it.name, v: v });   // 记录来源名称和数值
+      }
+    });
+  });
+  let mult = 1;
+  effectCols.forEach(c=>{ if (cat[c.id]) mult *= (1 + cat[c.id].sum/100); });
+  document.getElementById('totalBonus').textContent = fmtNum((mult-1)*100) + '%';
+  detailData = cat;
+
+  // 4) 单独显示的破防加成（破防带来的伤害提升）
+  //    算法：( [1-破防后减伤剩余] / [1-目标当前防御] - 1 ) × 100%
+  const defBefore = Math.max(0, 1 - R/100);    // 破防前受到的伤害比例
+  const defAfter  = Math.max(0, 1 - dr/100);   // 破防后受到的伤害比例
+  const breakGain = defBefore > 0 ? (defAfter / defBefore - 1) * 100 : 0;
+  document.getElementById('breakBonus').textContent = fmtNum(breakGain) + '%';
+}
+document.getElementById('supportToggle').addEventListener('change', recompute);
+
+/* ---------- 取消编辑表格数据时滚轮调整数值的功能（number输入框默认响应滚轮） ---------- */
+document.addEventListener('wheel', e=>{
+  const t = e.target;
+  if (t && t.tagName === 'INPUT' && t.type === 'number') e.preventDefault();
+}, { passive: false });
+
+/* ---------- 一键清空：清掉职业/加成（不影响辅助打钩状态） ---------- */
+document.getElementById('clearBtn').onclick = ()=>{
+  sel.job = []; sel.buff = [];
+  renderBoxes(); renderSelector(); saveState(); recompute();
+};
+
+/* ---------- 模块1 编辑弹窗（排序表头） ---------- */
+function editTableHtml(type, arr, withDel){
+  const st = sortStates[type];
+  const headCells = [];
+  // 名称列
+  {
+    const active = (st && st.key === 'name') ? ' sort-active' : '';
+    const arrow  = !st || st.key !== 'name' ? '' : (st.order===1 ? '▼' : '▲');
+    const arrVis = (st && st.key === 'name' && st.order!==0) ? 'style="opacity:1"' : '';
+    headCells.push('<th data-table="'+type+'" data-sortkey="name" class="'+active+'">' +
+      '<span class="sort-arrow" '+arrVis+'>'+arrow+'</span>名称</th>');
+  }
+  state.columns.forEach(c=>{
+    const active = (st && st.key === c.id) ? ' sort-active' : '';
+    const arrow  = !st || st.key !== c.id ? '' : (st.order===1 ? '▼' : '▲');
+    const arrVis = (st && st.key === c.id && st.order!==0) ? 'style="opacity:1"' : '';
+    headCells.push('<th data-table="'+type+'" data-sortkey="'+c.id+'" class="'+active+'">' +
+      '<span class="sort-arrow" '+arrVis+'>'+arrow+'</span>'+c.name+(c.id===state.columns[0].id?'%':'')+'</th>');
+  });
+  if (withDel) headCells.push('<th style="cursor:default">　</th>');
+  const thead = '<tr>' + headCells.join('') + '</tr>';
+  const rows = arr.map(it=>{
+    let tds = '';
+    tds += '<td class="row-name"><input data-type="'+type+'" data-uid="'+it.uid+'" data-field="name" value="'+esc(it.name)+'"></td>';
+    state.columns.forEach(c=>{ tds += '<td><input type="number" step="0.01" min="0" max="100" data-type="'+type+'" data-uid="'+it.uid+'" data-field="'+c.id+'" value="'+(it[c.id]||0)+'"></td>'; });
+    if (withDel) tds += '<td><button class="del" data-type="'+type+'" data-uid="'+it.uid+'" title="删除">×</button></td>';
+    return '<tr>'+tds+'</tr>';
+  }).join('');
+  return '<table class="tbl"><thead>'+thead+'</thead><tbody>'+rows+'</tbody></table>';
+}
+
+function renderEditTables(){
+  document.getElementById('jobTableWrap').innerHTML     = editTableHtml('occupations', state.occupations, true);
+  document.getElementById('buffTableWrap').innerHTML    = editTableHtml('bonuses', state.bonuses, true);
+  document.getElementById('supportTableWrap').innerHTML = editTableHtml('supports', state.supports, false);
+  renderSkillTable();
+}
+
+/* ---------- 渲染：技能表格（名称 + 无视%，只有这两个字段） ---------- */
+function renderSkillTable(){
+  const rows = state.skills.map(it=>{
+    return '<tr>' +
+      '<td class="row-name"><input data-uid="'+it.uid+'" data-field="name" value="'+esc(it.name)+'"></td>' +
+      '<td><input type="number" step="0.01" min="0" max="100" data-uid="'+it.uid+'" data-field="无视" value="'+(it.无视||0)+'"></td>' +
+      '<td><button class="del" data-type="skills" data-uid="'+it.uid+'" title="删除">×</button></td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('skillTableWrap').innerHTML =
+    '<table class="tbl"><thead><tr><th>名称</th><th>无视%</th><th style="cursor:default">　</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+/* ---------- 排序：点击表头循环【从大到小→从小到大→默认】 ---------- */
+function sortTable(tableType, key){
+  const arr = state[tableType];
+  if (!Array.isArray(arr)) return;
+  const st = sortStates[tableType];
+  if (st.key === key){
+    st.order = (st.order + 1) % 3;
+    if (st.order === 0) st.key = null;
+  } else {
+    st.key = key;
+    st.order = 1;
+  }
+  if (st.order === 0){
+    arr.sort((a,b)=> String(a.uid||'').localeCompare(String(b.uid||'')));
+  } else if (st.order === 1){
+    if (key === 'name') arr.sort((a,b)=> String(b.name).localeCompare(String(a.name), 'zh-Hans-CN'));
+    else arr.sort((a,b)=> (Number(b[key])||0) - (Number(a[key])||0));
+  } else {
+    if (key === 'name') arr.sort((a,b)=> String(a.name).localeCompare(String(b.name), 'zh-Hans-CN'));
+    else arr.sort((a,b)=> (Number(a[key])||0) - (Number(b[key])||0));
+  }
+  saveState(); renderEditTables(); renderSelector(); recompute();
+}
+
+// 表头点击事件委托
+document.addEventListener('click', e=>{
+  const th = e.target.closest('th');
+  if (!th || !th.dataset || !th.dataset.sortkey) return;
+  sortTable(th.dataset.table, th.dataset.sortkey);
+});
+
+/* ---------- 添加 / 删除 ---------- */
+function addItem(type){
+  const nameMap = { occupations:'新职业', bonuses:'新加成', skills:'新技能' };
+  const arr = state[type];
+  const item = { name: nameMap[type] + (arr.length+1) };
+  if (type === 'skills'){ item.无视 = 0; }               // 技能只有 无视 一个属性
+  else { state.columns.forEach(c=>{ item[c.id] = 0; }); }
+  item.uid = 'u' + (uidCounter++);
+  arr.push(item);
+  saveState(); renderEditTables(); renderSelector(); recompute();
+}
+function removeItem(type, uid){
+  const arr = state[type];
+  const idx = arr.findIndex(x=>x.uid===uid);
+  if (idx < 0) return;
+  arr.splice(idx,1);
+  sel.job  = sel.job.filter(x=>x.uid!==uid);
+  sel.buff = sel.buff.filter(x=>x.uid!==uid);
+  if (sel.skillUid === uid) sel.skillUid = null;   // 删掉的正好是勾选中的技能
+  saveState(); renderEditTables(); renderSelector(); renderBoxes(); recompute();
+}
+
+/* ---------- 单元格实时输入保存 ---------- */
+document.addEventListener('input', e=>{
+  const inp = e.target;
+  if (!inp.dataset || inp.dataset.field === undefined) return;
+  const found = findItem(inp.dataset.uid);
+  if (!found) return;
+  const item = found.item;
+  if (inp.dataset.field === 'name'){
+    item.name = inp.value;
+  } else {
+    const v = parseFloat(inp.value);
+    // 所有属性值限制在 0 ~ 100，精确到小数点后2位
+    item[inp.dataset.field] = isFinite(v) ? Math.round(Math.min(Math.max(v,0),100)*100)/100 : 0;
+  }
+  saveState(); renderSelector(); renderBoxes(); renderSupport(); recompute();
+});
+
+/* ---------- 导出 / 导入 ---------- */
+function exportData(){
+  const d = { _magic:MAGIC, _v:1, version:state.version, columns:state.columns, occupations:state.occupations, bonuses:state.bonuses, supports:state.supports, skills:state.skills };
+  const blob = new Blob([JSON.stringify(d, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  // 导出文件名 = 游戏版本（去掉文件名非法字符）
+  a.download = (state.version || '破防计算器配置').replace(/[\\/:*?"<>|]/g, '-') + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function importData(file){
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (!d || d._magic !== MAGIC){ alert('导入失败：不是有效的破防计算器配置文件'); return; }
+      state.columns = Array.isArray(d.columns) ? d.columns : DEFAULT_COLUMNS;
+      syncColumns();              // 列结构升级：补新列、刷新列名前缀，按id保留已有数值
+      state.occupations = Array.isArray(d.occupations) ? d.occupations : [];
+      state.bonuses     = Array.isArray(d.bonuses)     ? d.bonuses     : [];
+      state.supports    = Array.isArray(d.supports)    ? d.supports    : [];
+      state.skills      = Array.isArray(d.skills)      ? d.skills      : [];
+      // 导入后同步游戏版本标题
+      state.version = (typeof d.version === 'string' && d.version.trim()) ? d.version.trim() : '2026-8-12国服平衡';
+      syncUidCounter(); ensureUids(); normalizeItems(); normalizeSupports();
+      sel.job = []; sel.buff = []; sel.skillUid = null;
+      document.getElementById('supportToggle').checked = false;
+      saveState(); renderEditTables(); renderSelector(); renderBoxes(); renderSupport(); recompute(); updateVerField();
+    } catch(err){ alert('导入失败：文件格式错误'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ---------- 弹窗开关 ---------- */
+function show(id){ document.getElementById(id).classList.remove('hidden'); }
+function hide(id){ document.getElementById(id).classList.add('hidden'); }
+
+document.getElementById('openEditBtn').onclick = ()=>{ renderEditTables(); updateVerField(); show('editModal'); };
+
+/* ---------- 游戏版本：单击编辑，失焦保存 ---------- */
+function updateVerField(){
+  const el = document.getElementById('verField');
+  if (el && document.activeElement !== el) el.value = state.version;
+}
+document.getElementById('verField').addEventListener('blur', ()=>{
+  const el = document.getElementById('verField');
+  state.version = el.value.trim() || '2026-8-12国服平衡';
+  el.value = state.version;
+  saveState();
+});
+document.getElementById('closeEdit').onclick = ()=>hide('editModal');
+document.getElementById('addJob').onclick = ()=>addItem('occupations');
+document.getElementById('addBuff').onclick = ()=>addItem('bonuses');
+document.getElementById('addSkill').onclick = ()=>addItem('skills');
+document.getElementById('exportBtn').onclick = exportData;
+document.getElementById('importBtn').onclick = ()=>document.getElementById('importFile').click();
+document.getElementById('importFile').addEventListener('change', e=>{
+  const f = e.target.files[0];
+  if (f) importData(f);
+  e.target.value = '';
+});
+['editModal','detailModal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click', e=>{ if (e.target === e.currentTarget) hide(id); });
+});
+
+/* ---------- 加成详情弹窗 ---------- */
+function renderDetail(){
+  const list = state.columns.slice(1).filter(c=>detailData[c.id]);
+  const box = document.getElementById('detailContent');
+  if (!list.length){ box.innerHTML = '<span style="color:#9aa4b3">当前无加成</span>'; return; }
+  const circled = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  box.innerHTML = list.map((c,i)=>{
+    const d = detailData[c.id];
+    const num = circled[i] || (i+1)+'.';
+    // 括号内写上各项来源：如（辅助12%+CE10%）
+    const breakdown = '（'+d.parts.map(p=>p.name+fmtNum(p.v)+'%').join('+')+'）';
+    return '<div class="detail-item">'+num+'<b>'+c.name+fmtNum(d.sum)+'%</b>'+breakdown+'</div>';
+  }).join('');
+}
+document.getElementById('detailBtn').onclick = ()=>{ renderDetail(); show('detailModal'); };
+document.getElementById('closeDetail').onclick = ()=>hide('detailModal');
+
+/* ---------- 目标防御输入实时计算 ---------- */
+document.getElementById('targetDefPct').addEventListener('input', recompute);
+
+/* ---------- 一键套用目标防御百分比 ---------- */
+document.querySelectorAll('.q-btn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.getElementById('targetDefPct').value = b.dataset.v;
+    recompute();
+  });
+});
+
+/* ---------- Esc 关闭弹窗 ---------- */
+document.addEventListener('keydown', e=>{
+  if (e.key === 'Escape'){ hide('editModal'); hide('detailModal'); }
+});
+
+/* ---------- 初始化 ---------- */
+syncUidCounter(); ensureUids(); syncColumns(); normalizeItems(); normalizeSupports();
+restoreSel(savedRaw);   // 恢复上次拖入的职业/加成（重新打开不清空）
+bindDropZones();      // 拖放框是静态元素，只绑定一次，避免重复叠加监听器
+bindStripWheel();     // 职业/加成选择条：鼠标滚轮横向滚动
+renderSelector(); renderBoxes(); renderSupport(); recompute(); updateVerField();
+</script>
+</body>
+</html>
