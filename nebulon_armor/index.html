@@ -501,7 +501,7 @@
                 </label>
                 <div class="target-input-group">
                     <button class="target-btn" id="targetMinus" title="减1" disabled>−</button>
-                    <input type="number" id="targetScoreInput" class="target-input" value="50" min="0" max="200" step="0.5" disabled>
+                    <input type="number" id="targetScoreInput" class="target-input" value="50" min="0" max="200" step="1" disabled>
                     <button class="target-btn" id="targetPlus" title="加1" disabled>+</button>
                 </div>
             </div>
@@ -514,7 +514,7 @@
                 </label>
                 <div class="target-input-group">
                     <button class="target-btn" id="maxScoreMinus" title="减1" disabled>−</button>
-                    <input type="number" id="maxScoreInput" class="target-input" value="80" min="0" max="200" step="0.5" disabled>
+                    <input type="number" id="maxScoreInput" class="target-input" value="80" min="0" max="200" step="1" disabled>
                     <button class="target-btn" id="maxScorePlus" title="加1" disabled>+</button>
                 </div>
             </div>
@@ -826,7 +826,7 @@ function findCustomTargetOptions() {
     const maxThreshold = useMax ? maxScoreThreshold : -Infinity;
 
     const noCondition = !useTarget && !useMax;
-    const maxIterations = noCondition ? 1000 : 10000000;
+    const maxIterations = noCondition ? 1000 : 1000000;
 
     let localSearchCount = 0;
     let lastSlots = [];
@@ -988,7 +988,7 @@ function setTargetScore(value) {
     if (isNaN(value)) value = 0;
     if (value < 0) value = 0;
     if (value > 200) value = 200;
-    targetScore = Math.round(value * 2) / 2; // 0.5 步进
+    targetScore = Math.round(value); // 整数步进
     targetScoreInput.value = targetScore;
 }
 
@@ -996,7 +996,7 @@ function setMaxScore(value) {
     if (isNaN(value)) value = 0;
     if (value < 0) value = 0;
     if (value > 200) value = 200;
-    maxScoreThreshold = Math.round(value * 2) / 2;
+    maxScoreThreshold = Math.round(value);
     maxScoreInput.value = maxScoreThreshold;
 }
 
@@ -1010,13 +1010,13 @@ calcResetBtn.addEventListener('click', resetCalc);
 
 targetScoreCheckbox.addEventListener('change', updateTargetDisabled);
 targetScoreInput.addEventListener('input', e => setTargetScore(parseFloat(e.target.value)));
-targetMinus.addEventListener('click', () => setTargetScore(targetScore - 0.5));
-targetPlus.addEventListener('click', () => setTargetScore(targetScore + 0.5));
+targetMinus.addEventListener('click', () => setTargetScore(targetScore - 1));
+targetPlus.addEventListener('click', () => setTargetScore(targetScore + 1));
 
 maxScoreCheckbox.addEventListener('change', updateMaxDisabled);
 maxScoreInput.addEventListener('input', e => setMaxScore(parseFloat(e.target.value)));
-maxScoreMinus.addEventListener('click', () => setMaxScore(maxScoreThreshold - 0.5));
-maxScorePlus.addEventListener('click', () => setMaxScore(maxScoreThreshold + 0.5));
+maxScoreMinus.addEventListener('click', () => setMaxScore(maxScoreThreshold - 1));
+maxScorePlus.addEventListener('click', () => setMaxScore(maxScoreThreshold + 1));
 
 // ============================================================
 // 初始化
