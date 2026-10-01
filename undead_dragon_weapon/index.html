@@ -55,8 +55,8 @@
 
         .panel.right {
             background: #2a313b;
-            overflow: hidden;     /* 防止内容溢出 panel 边界 */
-            min-height: 0;        /* 允许在 stretch 时被压缩，让内部 body 滚动 */
+            overflow-y: auto;     /* 右侧内容可滚动 */
+            min-height: 0;
         }
 
         .panel h2 {
@@ -307,22 +307,23 @@
             box-shadow: inset 0 2px 5px #0f1216;
         }
 
-        .light-red {
-            color: #ff7b72;
+        .green-highlight {
+            color: #4caf50;
             font-weight: 600;
-            border-left-color: #ff4d4d;
+            border-left-color: #388e3c;
         }
 
-        .deep-red {
-            color: #b22222;
+        .purple-highlight {
+            color: #b388ff;
             font-weight: 700;
-            border-left-color: #8b0000;
+            border-left-color: #7c4dff;
         }
 
-        .yellow-highlight {
-            color: #f5e56b;
-            font-weight: 600;
+        .gold-highlight {
+            color: #ffd700;
+            font-weight: 700;
             border-left-color: #e6b800;
+            text-shadow: 0 0 6px rgba(255, 215, 0, 0.5);
         }
 
         .empty-placeholder {
@@ -698,6 +699,127 @@
             background: #6e7b8d;
         }
 
+        /* ===== 右侧：分值计算器 ===== */
+        .calc-section {
+            margin-top: 18px;
+        }
+
+        .calc-toggle-btn {
+            width: 100%;
+            background: #1b222a;
+            border: 1px solid #4d5b6b;
+            border-radius: 60px;
+            padding: 12px 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            color: #e3dccb;
+            font-size: 1.05rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .calc-toggle-btn:hover {
+            background: #243040;
+        }
+
+        .calc-arrow {
+            font-size: 0.8rem;
+            color: #8a96a6;
+            transition: transform 0.2s;
+        }
+
+        .calc-content {
+            margin-top: 14px;
+        }
+
+        .attr-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 14px;
+            margin: 14px 0 18px;
+        }
+
+        .attr-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2d3844;
+            padding: 8px 14px;
+            border-radius: 40px;
+            border: 1px solid #4e6072;
+        }
+
+        .attr-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #e3dccb;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 8px;
+            max-width: 55%;
+        }
+
+        .calc-select {
+            background: #1e2936;
+            color: #eef3fc;
+            font-size: 0.88rem;
+            padding: 6px 24px 6px 10px;
+            border-radius: 30px;
+            border: 1px solid #6d829b;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23c0ccda' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 12px;
+            min-width: 78px;
+            text-align: center;
+        }
+
+        .calc-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #4b5565;
+        }
+
+        .right-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1b222a;
+            border-radius: 60px;
+            padding: 12px 22px;
+            border: 1px solid #4d5b6b;
+        }
+
+        .total-score-right {
+            background: #2a5f7a;
+            padding: 8px 30px;
+            border-radius: 40px;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #ffecb3;
+        }
+
+        .right-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        @media (max-width: 750px) {
+            .attr-grid {
+                grid-template-columns: 1fr;
+            }
+            .right-footer {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+
         @media (max-width: 750px) {
             .panel.left {
                 border-right: none;
@@ -803,7 +925,7 @@
             </div>
         </div>
 
-        <!-- 右侧：自动变换设定（来自游戏内变换条件面板） -->
+        <!-- 右侧：自动变换设定 + 分值计算器 -->
         <div class="panel right">
             <h2>⚙️ 自动变换设定</h2>
 
@@ -858,6 +980,24 @@
                     <button class="target-btn" id="maxScoreMinus" title="减1" disabled>−</button>
                     <input type="number" id="maxScoreInput" class="target-input" value="100" min="0" max="120" step="1" disabled>
                     <button class="target-btn" id="maxScorePlus" title="加1" disabled>+</button>
+                </div>
+            </div>
+
+            <!-- 分值计算器（默认收起） -->
+            <div class="calc-section">
+                <button class="calc-toggle-btn" id="calcToggleBtn" type="button">
+                    <span>📐 死龙武器分值计算器</span>
+                    <span class="calc-arrow" id="calcArrow">▼</span>
+                </button>
+                <div class="calc-content" id="calcContent" style="display:none;">
+                    <div class="attr-grid" id="attrGridContainer"></div>
+                    <div class="right-footer">
+                        <span class="total-score-right" id="rightTotalScore">0</span>
+                        <div class="right-actions">
+                            <button class="action-btn" id="calcScoreBtn">确 定</button>
+                            <button class="action-btn" id="clearAllSelections">清除全部</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1017,6 +1157,16 @@
         // 右侧效果设定行的运行时数据：每行 { stat, valueSelect, checkbox }
         // valueSelect.value 是 tier 字符串 '0'~'7'，'' 表示未选
         let effectRows = [];
+
+        // 分值计算器相关
+        const attrGridContainer = document.getElementById('attrGridContainer');
+        const rightTotalScoreSpan = document.getElementById('rightTotalScore');
+        const calcScoreBtn = document.getElementById('calcScoreBtn');
+        const clearAllBtn = document.getElementById('clearAllSelections');
+        const calcToggleBtn = document.getElementById('calcToggleBtn');
+        const calcContent = document.getElementById('calcContent');
+        const calcArrow = document.getElementById('calcArrow');
+        let rightSelects = [];
 
         // --------------------------------------------------------------
         // 更新统计显示
@@ -1403,16 +1553,15 @@
                 let htmlStr = '';
                 drawItems.forEach(item => {
                     let colorClass = '';
-                    if (yellowNames.includes(item.name)) {
-                        colorClass = 'yellow-highlight';
-                    } else if (specialShadeNames.includes(item.name)) {
-                        if (item.tier < 4) {
-                            colorClass = 'deep-red';
+                    // 只有有分数的词条才按档位染色
+                    if (scoredAttrNames.includes(item.name)) {
+                        if (item.tier === 0) {
+                            colorClass = 'gold-highlight';      // 最高档：金黄
+                        } else if (item.tier <= 2) {
+                            colorClass = 'purple-highlight';    // 第2~3档：紫色
                         } else {
-                            colorClass = 'light-red';
+                            colorClass = 'green-highlight';     // 其余：绿色
                         }
-                    } else if (scoredAttrNames.includes(item.name)) {
-                        colorClass = 'light-red';
                     }
                     const classAttr = colorClass ? ` class="line-item ${colorClass}"` : ` class="line-item"`;
                     htmlStr += `<div${classAttr}>【${item.name}】 ${item.valueStr}</div>`;
@@ -1546,6 +1695,85 @@
 
         buildEffectTable();
         clearEffectSettingsBtn.addEventListener('click', clearEffectSettings);
+
+        // --------------------------------------------------------------
+        // 分值计算器：构建15条有分数词条的下拉选择
+        function buildRightPanel() {
+            attrGridContainer.innerHTML = '';
+            rightSelects = [];
+
+            scoredStats.forEach(stat => {
+                const row = document.createElement('div');
+                row.className = 'attr-row';
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'attr-name';
+                nameSpan.textContent = stat.name;
+                row.appendChild(nameSpan);
+
+                const select = document.createElement('select');
+                select.className = 'calc-select';
+
+                const blankOption = document.createElement('option');
+                blankOption.value = '';
+                blankOption.textContent = '— 请选择 —';
+                select.appendChild(blankOption);
+
+                stat.values.forEach((val, idx) => {
+                    const option = document.createElement('option');
+                    option.value = `${stat.name}_${idx}`;
+                    option.textContent = val;
+                    option.dataset.score = stat.scores[idx];
+                    select.appendChild(option);
+                });
+
+                row.appendChild(select);
+                attrGridContainer.appendChild(row);
+                rightSelects.push(select);
+            });
+
+            rightSelects.forEach(sel => sel.addEventListener('change', updateCalcDisabledState));
+        }
+
+        // 限制最多同时选择 4 条属性（与死龙4条词条对应）
+        function updateCalcDisabledState() {
+            const selectedCount = rightSelects.filter(sel => sel.value !== '').length;
+            rightSelects.forEach(sel => {
+                sel.disabled = (sel.value === '' && selectedCount >= 4);
+            });
+        }
+
+        // 计算总分（上限100）
+        function calculateScore() {
+            let total = 0;
+            rightSelects.forEach(sel => {
+                if (sel.value !== '') {
+                    const score = parseInt(sel.options[sel.selectedIndex].dataset.score, 10);
+                    if (!isNaN(score)) total += score;
+                }
+            });
+            rightTotalScoreSpan.textContent = Math.min(total, 100);
+        }
+
+        // 清除全部选择
+        function clearAllSelections() {
+            rightSelects.forEach(sel => {
+                sel.value = '';
+                sel.disabled = false;
+            });
+            rightTotalScoreSpan.textContent = '0';
+        }
+
+        buildRightPanel();
+        calcScoreBtn.addEventListener('click', calculateScore);
+        clearAllBtn.addEventListener('click', clearAllSelections);
+
+        // 计算器折叠/展开
+        calcToggleBtn.addEventListener('click', () => {
+            const isHidden = calcContent.style.display === 'none';
+            calcContent.style.display = isHidden ? 'block' : 'none';
+            calcArrow.textContent = isHidden ? '▲' : '▼';
+        });
 
         // --------------------------------------------------------------
         // 初始化
