@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "rm -rf dist && mkdir dist && find . -maxdepth 1 ! -name '.' ! -name 'dist' ! -name 'node_modules' -exec cp -r {} dist/ \\; && echo build done && find dist -type f"
+    "build": "rm -rf dist && mkdir dist && find . -maxdepth 1 ! -name '.' ! -name 'dist' ! -name 'node_modules' ! -name '.git' -exec cp -r {} dist/ \\; && echo build done && find dist -type f"
   }
 }
