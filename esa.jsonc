@@ -3,7 +3,7 @@
   "installCommand": "",
   "buildCommand": "npm run build",
   "assets": {
-    "directory": "./",
+    "directory": "./dist",
     "notFoundStrategy": "404"
   }
 }
