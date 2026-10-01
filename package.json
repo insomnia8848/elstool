@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "rm -rf dist && mkdir dist && find . -maxdepth 1 ! -name '.' ! -name 'dist' ! -name 'node_modules' ! -name '.git' -exec cp -r {} dist/ \\; && echo build done && find dist -type f"
+    "build": "rm -rf dist && mkdir dist && cp -r index.html KEmaster.png undeaddragon.png nebulonarmor.png iceburner.png yincang.png armorbreak.png undead_dragon_weapon nebulon_armor team_break weekly ice_burner dist/ && echo build done && find dist -type f"
   }
 }
