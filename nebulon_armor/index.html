@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+<title>涅博隆作战服变换模拟器</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        background: #1a1e24;
+        font-family: 'Segoe UI', 'Noto Sans SC', Roboto, system-ui, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        color: #e3e6eb;
+    }
+
+    .container {
+        max-width: 1400px;
+        width: 100%;
+        background: #252b34;
+        border-radius: 32px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        overflow: hidden;
+        border: 1px solid #3f4a57;
+    }
+
+    /* 左右双栏布局 */
+    .split-panel {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: stretch;
+    }
+
+    .panel {
+        flex: 1 1 400px;
+        min-width: 320px;
+        padding: 28px 24px;
+        background: #2d343e;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .panel.left {
+        border-right: 1px solid #404b58;
+    }
+
+    .panel.right {
+        background: #2a313b;
+    }
+
+    .panel h2 {
+        font-size: 1.7rem;
+        font-weight: 500;
+        letter-spacing: 1px;
+        margin-bottom: 24px;
+        border-left: 6px solid #c99c47;
+        padding-left: 18px;
+        color: #f0e9db;
+    }
+
+    /* ===== 左侧：模拟器区域 ===== */
+    .simulator-box {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        flex: 1 1 auto;
+    }
+
+    /* 属性结果区 */
+    .result-lines {
+        background: #1f262e;
+        border-radius: 24px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        border: 1px solid #495765;
+        min-height: 180px;
+    }
+
+    .line-item {
+        font-size: 1rem;
+        font-family: 'JetBrains Mono', 'Consolas', monospace;
+        background: #2e3844;
+        padding: 10px 16px;
+        border-radius: 40px;
+        border-left: 4px solid #b68b5c;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: inset 0 2px 5px #0f1216;
+    }
+
+    .line-item .opt-name {
+        flex: 1;
+    }
+
+    .line-item .score-tag {
+        background: rgba(30, 95, 122, 0.6);
+        color: #7fd4f0;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        margin-left: 10px;
+        white-space: nowrap;
+    }
+
+    /* 数值档位染色（仅对有分数的词条生效） */
+    .opt-name.gold-highlight {
+        color: #ffd700;
+        font-weight: 700;
+        text-shadow: 0 0 6px rgba(255, 215, 0, 0.5);
+    }
+
+    .opt-name.purple-highlight {
+        color: #b388ff;
+        font-weight: 700;
+    }
+
+    .opt-name.green-highlight {
+        color: #4caf50;
+        font-weight: 600;
+    }
+
+    .empty-placeholder {
+        color: #7a879b;
+        font-style: italic;
+        text-align: center;
+        padding: 28px 0;
+        font-size: 1.05rem;
+    }
+
+    /* 按钮组 */
+    .button-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .primary-btn {
+        background: #1e90ff;
+        border: none;
+        color: white;
+        font-size: 1.4rem;
+        font-weight: 600;
+        padding: 14px 20px;
+        border-radius: 48px;
+        cursor: pointer;
+        box-shadow: 0 6px 0 #0f4f8a;
+        transition: 0.1s ease;
+        letter-spacing: 2px;
+        width: 100%;
+    }
+
+    .primary-btn:active {
+        transform: translateY(4px);
+        box-shadow: 0 2px 0 #0f4f8a;
+    }
+
+    .dual-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .auto-btn {
+        flex: 1 1 120px;
+        border: none;
+        color: white;
+        font-size: 1.1rem;
+        font-weight: 600;
+        padding: 12px 8px;
+        border-radius: 48px;
+        cursor: pointer;
+        box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+        transition: 0.1s ease;
+        letter-spacing: 1px;
+    }
+
+    .auto-btn:active {
+        transform: translateY(4px);
+        box-shadow: 0 1px 0 rgba(0,0,0,0.3);
+    }
+
+    .search-btn { background: #e6a817; }
+    .reset-btn { background: #555e6b; }
+
+    /* 总分 + 上限分 同行 */
+    .score-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        background: #1b222a;
+        border-radius: 60px;
+        padding: 12px 22px;
+        border: 1px solid #4d5b6b;
+    }
+
+    .score-badge {
+        background: #2a5f7a;
+        padding: 8px 22px;
+        border-radius: 40px;
+        font-weight: 600;
+        font-size: 1.4rem;
+        color: #f5e7c8;
+        display: inline-block;
+    }
+
+    .max-score-badge {
+        background: #5a3f1a;
+        color: #f5d8a0;
+    }
+
+    /* R消费 + 变换次数 */
+    .info-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        background: #1b222a;
+        border-radius: 60px;
+        padding: 12px 22px;
+        border: 1px solid #4d5b6b;
+    }
+
+    .r-cost-display {
+        background: #3a4a5a;
+        padding: 8px 18px;
+        border-radius: 40px;
+        font-size: 1.2rem;
+        font-weight: 500;
+        color: #f5e56b;
+    }
+
+    .count-display {
+        background: #2d3844;
+        padding: 8px 18px;
+        border-radius: 40px;
+        font-size: 1.1rem;
+        color: #b3e0b0;
+    }
+
+    /* ===== 右侧：分值计算器 ===== */
+    .calc-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .calc-header-text h3 {
+        font-size: 1.15rem;
+        color: #39ff14;
+        font-weight: bold;
+        text-shadow: 0 0 8px rgba(57, 255, 20, 0.4);
+    }
+
+    /* 属性网格（参考 UI参考2） */
+    .attr-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 14px;
+        margin-bottom: 18px;
+    }
+
+    .attr-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #2d3844;
+        padding: 9px 14px;
+        border-radius: 36px;
+        border: 1px solid #4e6072;
+    }
+
+    .attr-name {
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: #e3dccb;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-right: 8px;
+        max-width: 55%;
+    }
+
+    .attr-row select {
+        background: #1e2936;
+        color: #eef3fc;
+        font-size: 0.85rem;
+        padding: 6px 22px 6px 10px;
+        border-radius: 30px;
+        border: 1px solid #6d829b;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23c0ccda' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 12px;
+        text-align: center;
+        min-width: 78px;
+    }
+
+    .attr-row select:focus { outline: none; border-color: #1e90ff; }
+
+    /* 计算器底部：总分 + 重置 */
+    .calc-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #1b222a;
+        border-radius: 60px;
+        padding: 12px 22px;
+        border: 1px solid #4d5b6b;
+    }
+
+    .total-score-badge {
+        background: #2a5f7a;
+        padding: 8px 28px;
+        border-radius: 40px;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #ffecb3;
+    }
+
+    .action-btn {
+        background: #555e6b;
+        border: 1px solid #8799b0;
+        color: white;
+        padding: 9px 22px;
+        border-radius: 40px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .action-btn:hover { background: #6e7b8d; }
+
+    /* 目标分值 / 上限分 勾选行 */
+    .target-score-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #1b222a;
+        border-radius: 60px;
+        padding: 12px 22px;
+        border: 1px solid #4d5b6b;
+        margin-top: 14px;
+    }
+
+    .target-score-check-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .target-score-check-wrap input[type="checkbox"] {
+        width: 22px;
+        height: 22px;
+        cursor: pointer;
+        accent-color: #1e90ff;
+    }
+
+    .target-label {
+        font-size: 1.05rem;
+        color: #c0ccda;
+        white-space: nowrap;
+    }
+
+    .target-input-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .target-btn {
+        background: #4b5565;
+        border: none;
+        color: white;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        font-size: 1.3rem;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s;
+    }
+
+    .target-btn:hover { background: #606c7e; }
+    .target-btn:active { transform: scale(0.95); }
+    .target-btn:disabled { background: #3b414b; cursor: not-allowed; opacity: 0.6; }
+
+    .target-input {
+        width: 66px;
+        background: #2e3c4e;
+        border: 1px solid #6d829b;
+        color: #eef3fc;
+        font-size: 1.15rem;
+        padding: 6px 10px;
+        border-radius: 40px;
+        text-align: center;
+        -moz-appearance: textfield;
+        appearance: textfield;
+        font-weight: 600;
+    }
+
+    .target-input::-webkit-outer-spin-button,
+    .target-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .target-input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    @media (max-width: 750px) {
+        .panel.left { border-right: none; border-bottom: 1px solid #404b58; }
+        .dual-buttons { flex-direction: column; }
+        .auto-btn { width: 100%; }
+        .attr-grid { grid-template-columns: 1fr; }
+        .score-row, .info-row, .target-score-bar, .calc-footer {
+            flex-wrap: wrap; gap: 10px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="split-panel">
+        <!-- 左侧：涅博隆作战服变换模拟器 -->
+        <div class="panel left">
+            <h2>涅博隆作战服变换模拟器</h2>
+            <div class="simulator-box">
+
+                <!-- 属性结果区 -->
+                <div class="result-lines" id="resultLines">
+                    <div class="empty-placeholder">点击 [属性变换] 开始洗练</div>
+                </div>
+
+                <!-- 按钮组 -->
+                <div class="button-group">
+                    <button class="primary-btn" id="transformBtn">属 性 变 换</button>
+                    <div class="dual-buttons">
+                        <button class="auto-btn search-btn" id="searchBtn">一 键 变 换</button>
+                        <button class="auto-btn reset-btn" id="resetBtn">重 置</button>
+                    </div>
+                </div>
+
+                <!-- 总分 + 上限分 -->
+                <div class="score-row">
+                    <span class="score-badge" id="totalScoreBadge">总分: 0.0</span>
+                    <span class="score-badge max-score-badge" id="maxScoreBadge">上限分: 0.0</span>
+                </div>
+
+                <!-- R消费 + 变换次数 -->
+                <div class="info-row">
+                    <span class="r-cost-display" id="rCostDisplay">0 R</span>
+                    <span class="count-display" id="countDisplay">变换次数: 0</span>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 右侧：防具变换分值计算器（常驻显示，无收起条） -->
+        <div class="panel right">
+            <div class="calc-header">
+                <div class="calc-header-text">
+                    <h3>防具变换分值计算器</h3>
+                </div>
+            </div>
+
+            <!-- 属性下拉网格 -->
+            <div class="attr-grid" id="attrGridContainer">
+                <!-- JS 动态生成 -->
+            </div>
+
+            <!-- 计算器底部：总分 + 重置 -->
+            <div class="calc-footer">
+                <span class="total-score-badge" id="calcTotal">0.0</span>
+                <button class="action-btn" id="calcResetBtn">重置</button>
+            </div>
+
+            <!-- 目标分值勾选行 -->
+            <div class="target-score-bar">
+                <label class="target-score-check-wrap" for="targetScoreCheckbox">
+                    <input type="checkbox" id="targetScoreCheckbox">
+                    <span class="target-label">🎯 目标分值</span>
+                </label>
+                <div class="target-input-group">
+                    <button class="target-btn" id="targetMinus" title="减1" disabled>−</button>
+                    <input type="number" id="targetScoreInput" class="target-input" value="50" min="0" max="200" step="0.5" disabled>
+                    <button class="target-btn" id="targetPlus" title="加1" disabled>+</button>
+                </div>
+            </div>
+
+            <!-- 上限分勾选行 -->
+            <div class="target-score-bar">
+                <label class="target-score-check-wrap" for="maxScoreCheckbox">
+                    <input type="checkbox" id="maxScoreCheckbox">
+                    <span class="target-label">📈 上限分</span>
+                </label>
+                <div class="target-input-group">
+                    <button class="target-btn" id="maxScoreMinus" title="减1" disabled>−</button>
+                    <input type="number" id="maxScoreInput" class="target-input" value="80" min="0" max="200" step="0.5" disabled>
+                    <button class="target-btn" id="maxScorePlus" title="加1" disabled>+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 属性选项表：[名称, 最小值, 最大值, 是否特殊, 权重]
+// ============================================================
+const options = [
+    ["双攻*强化等级", 0.02, 0.2, true, 0.833],
+    ["爆伤*强化等级", 0.02, 0.2, true, 0.833],
+    ["全技*强化等级", 0.02, 0.2, true, 0.834],
+    ["流血", 0.1, 1, false, 6.5],
+    ["双攻", 0.1, 1, false, 6.5],
+    ["百增", 0.1, 1, false, 6.5],
+    ["两极化", 0.1, 1, false, 6.5],
+    ["爆伤", 0.1, 1, false, 6.5],
+    ["王伤", 0.1, 1, false, 6.5],
+    ["强韧技伤", 0.1, 1, false, 6.5],
+    ["强烈技伤", 0.1, 1, false, 6.5],
+    ["超越技伤", 0.1, 1, false, 6.5],
+    ["全技伤", 0.1, 1, false, 6.5],
+    ["暴击", 0.3, 1.2, false, 6.5],
+    ["极大化", 0.3, 1.2, false, 6.5],
+    ["无视防御", 0.1, 1, false, 6.5],
+    ["小怪伤", 0.3, 1.2, false, 6.5],
+    ["奶技增加", 0.3, 1.2, false, 6.5]
+];
+
+// ============================================================
+// 防具评分表：[属性名, 数值, 分数]
+// ============================================================
+const scoreTable = [
+    // 双攻强化等级
+    ["双攻*强化等级", 0.2, 42.5],
+    ["双攻*强化等级", 0.18, 38.5],
+    ["双攻*强化等级", 0.16, 34],
+    ["双攻*强化等级", 0.14, 30],
+    ["双攻*强化等级", 0.12, 25.5],
+    ["双攻*强化等级", 0.1, 21.5],
+    ["双攻*强化等级", 0.08, 17],
+    ["双攻*强化等级", 0.06, 13],
+    ["双攻*强化等级", 0.04, 8.5],
+
+    // 爆伤强化等级
+    ["爆伤*强化等级", 0.2, 22.5],
+    ["爆伤*强化等级", 0.18, 20],
+    ["爆伤*强化等级", 0.16, 18],
+    ["爆伤*强化等级", 0.14, 15.5],
+    ["爆伤*强化等级", 0.12, 13.5],
+    ["爆伤*强化等级", 0.1, 11],
+    ["爆伤*强化等级", 0.08, 9],
+    ["爆伤*强化等级", 0.06, 7],
+    ["爆伤*强化等级", 0.04, 4.5],
+
+    // 全技强化等级
+    ["全技*强化等级", 0.2, 35],
+    ["全技*强化等级", 0.18, 31.5],
+    ["全技*强化等级", 0.16, 28],
+    ["全技*强化等级", 0.14, 24.5],
+    ["全技*强化等级", 0.12, 21],
+    ["全技*强化等级", 0.1, 17.5],
+    ["全技*强化等级", 0.08, 14],
+    ["全技*强化等级", 0.06, 10.5],
+    ["全技*强化等级", 0.04, 7],
+
+    // 流血
+    ["流血", 1, 21.5],
+    ["流血", 0.9, 19.5],
+    ["流血", 0.8, 17.5],
+    ["流血", 0.7, 15],
+    ["流血", 0.6, 13],
+    ["流血", 0.5, 11],
+    ["流血", 0.4, 8.5],
+
+    // 双攻
+    ["双攻", 1, 19.5],
+    ["双攻", 0.9, 17.5],
+    ["双攻", 0.8, 15.5],
+    ["双攻", 0.7, 13.5],
+    ["双攻", 0.6, 11.5],
+    ["双攻", 0.5, 10],
+    ["双攻", 0.4, 7.5],
+
+    // 百增
+    ["百增", 1, 27.5],
+    ["百增", 0.9, 25],
+    ["百增", 0.8, 22],
+    ["百增", 0.7, 19],
+    ["百增", 0.6, 16.5],
+    ["百增", 0.5, 14],
+    ["百增", 0.4, 11],
+
+    // 两极化
+    ["两极化", 1, 23],
+    ["两极化", 0.9, 21],
+    ["两极化", 0.8, 18.5],
+    ["两极化", 0.7, 16],
+    ["两极化", 0.6, 14],
+    ["两极化", 0.5, 11.5],
+    ["两极化", 0.4, 9],
+
+    // 爆伤
+    ["爆伤", 1, 10],
+    ["爆伤", 0.9, 9],
+    ["爆伤", 0.8, 8],
+    ["爆伤", 0.7, 7],
+    ["爆伤", 0.6, 6],
+    ["爆伤", 0.5, 5],
+    ["爆伤", 0.4, 4],
+
+    // Boss伤
+    ["王伤", 1, 18],
+    ["王伤", 0.9, 16],
+    ["王伤", 0.8, 14.5],
+    ["王伤", 0.7, 12.5],
+    ["王伤", 0.6, 10.5],
+    ["王伤", 0.5, 9],
+    ["王伤", 0.4, 7],
+
+    // 强烈技伤
+    ["强烈技伤", 1, 15],
+    ["强烈技伤", 0.9, 13.5],
+    ["强烈技伤", 0.8, 12],
+    ["强烈技伤", 0.7, 10.5],
+    ["强烈技伤", 0.6, 9],
+    ["强烈技伤", 0.5, 7.5],
+    ["强烈技伤", 0.4, 6],
+
+    // 超越技伤
+    ["超越技伤", 1, 15],
+    ["超越技伤", 0.9, 13.5],
+    ["超越技伤", 0.8, 12],
+    ["超越技伤", 0.7, 10.5],
+    ["超越技伤", 0.6, 9],
+    ["超越技伤", 0.5, 7.5],
+    ["超越技伤", 0.4, 6],
+
+    // 全技
+    ["全技伤", 1, 16],
+    ["全技伤", 0.9, 14.5],
+    ["全技伤", 0.8, 12.5],
+    ["全技伤", 0.7, 11],
+    ["全技伤", 0.6, 9.5],
+    ["全技伤", 0.5, 8],
+    ["全技伤", 0.4, 6.5]
+];
+
+// ============================================================
+// 状态变量
+// ============================================================
+let clickCount = 0;
+let targetScore = 50;
+let maxScoreThreshold = 80;
+
+// ============================================================
+// DOM 引用
+// ============================================================
+const transformBtn = document.getElementById('transformBtn');
+const searchBtn = document.getElementById('searchBtn');
+const resetBtn = document.getElementById('resetBtn');
+const resultLinesDiv = document.getElementById('resultLines');
+const totalScoreBadge = document.getElementById('totalScoreBadge');
+const maxScoreBadge = document.getElementById('maxScoreBadge');
+const rCostDisplay = document.getElementById('rCostDisplay');
+const countDisplay = document.getElementById('countDisplay');
+
+const attrGridContainer = document.getElementById('attrGridContainer');
+const calcTotalEl = document.getElementById('calcTotal');
+const calcResetBtn = document.getElementById('calcResetBtn');
+
+const targetScoreCheckbox = document.getElementById('targetScoreCheckbox');
+const targetScoreInput = document.getElementById('targetScoreInput');
+const targetMinus = document.getElementById('targetMinus');
+const targetPlus = document.getElementById('targetPlus');
+
+const maxScoreCheckbox = document.getElementById('maxScoreCheckbox');
+const maxScoreInput = document.getElementById('maxScoreInput');
+const maxScoreMinus = document.getElementById('maxScoreMinus');
+const maxScorePlus = document.getElementById('maxScorePlus');
+
+// ============================================================
+// 核心函数
+// ============================================================
+
+// 加权随机（无放回）
+function weightedRandom(excluded = []) {
+    let available = options.filter((_, i) => !excluded.includes(i));
+    let totalWeight = available.reduce((sum, o) => sum + o[4], 0);
+    let r = Math.random() * totalWeight;
+    let cumulative = 0;
+    for (let i = 0; i < available.length; i++) {
+        cumulative += available[i][4];
+        if (r <= cumulative) return options.indexOf(available[i]);
+    }
+    return options.indexOf(available[available.length - 1]);
+}
+
+// 根据属性名+数值查分数
+function getScore(name, value) {
+    let candidates = scoreTable.filter(s => s[0] === name);
+    if (candidates.length === 0) return 0;
+    let validCandidates = candidates.filter(s => value >= s[1] - 0.0001);
+    if (validCandidates.length === 0) return 0;
+    let bestMatch = validCandidates.reduce((prev, curr) => (curr[1] > prev[1]) ? curr : prev);
+    return bestMatch[2];
+}
+
+// 获取某属性的最高分（用于上限分计算）
+function getMaxScore(name) {
+    let candidates = scoreTable.filter(s => s[0] === name);
+    if (candidates.length === 0) return 0;
+    return Math.max(...candidates.map(s => s[2]));
+}
+
+// 获取某属性某数值的档位（0 = 最高档，返回 -1 表示无分数）
+function getTier(name, value) {
+    let candidates = scoreTable.filter(s => s[0] === name);
+    if (candidates.length === 0) return -1;
+    // scoreTable 中条目按数值从高到低排列
+    for (let i = 0; i < candidates.length; i++) {
+        if (Math.abs(candidates[i][1] - value) < 0.0001) return i;
+    }
+    return -1;
+}
+
+// 格式化属性显示
+function formatOptionDisplay(name, value) {
+    return `${name} : ${value}%`;
+}
+
+// 生成单个槽位数据
+function generateSlotData(index) {
+    let opt = options[index];
+    let val;
+    if (opt[0].includes("*强化等级")) {
+        const possibleValues = [0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20];
+        val = possibleValues[Math.floor(Math.random() * possibleValues.length)];
+    } else {
+        let minInt = Math.round(opt[1] * 10);
+        let maxInt = Math.round(opt[2] * 10);
+        let range = maxInt - minInt + 1;
+        let randomInt = Math.floor(Math.random() * range) + minInt;
+        val = randomInt / 10;
+    }
+    let score = getScore(opt[0], val);
+    return { opt, val, score };
+}
+
+// 更新统计UI
+function updateStatsUI(count, score, maxScore) {
+    countDisplay.textContent = `变换次数: ${count}`;
+    totalScoreBadge.textContent = `总分: ${score.toFixed(1)}`;
+    maxScoreBadge.textContent = `上限分: ${maxScore.toFixed(1)}`;
+    const rCost = count * 3.9;
+    rCostDisplay.textContent = `${Math.round(rCost).toLocaleString()} R`;
+}
+
+// 渲染属性变换结果
+function renderResult(selected) {
+    let totalScore = 0;
+    let maxTotal = 0;
+    let html = '';
+
+    selected.forEach(index => {
+        let { opt, val, score } = generateSlotData(index);
+        totalScore += score;
+        maxTotal += getMaxScore(opt[0]);
+
+        // 按档位染色：仅对有分数的词条生效
+        let tierClass = '';
+        const tier = getTier(opt[0], val);
+        if (tier === 0) tierClass = 'gold-highlight';       // 最高档：金黄
+        else if (tier >= 1 && tier <= 2) tierClass = 'purple-highlight'; // 第2~3档：紫色
+        else if (tier >= 3) tierClass = 'green-highlight';   // 其余：绿色
+
+        html += `
+            <div class="line-item">
+                <span class="opt-name ${tierClass}">${formatOptionDisplay(opt[0], val)}</span>
+                <span class="score-tag">${score} 分</span>
+            </div>`;
+    });
+
+    resultLinesDiv.innerHTML = html;
+    return { totalScore, maxTotal };
+}
+
+// 属性变换
+function getRandomOptions() {
+    let selected = [];
+    while (selected.length < 3) {
+        let randomIndex = weightedRandom(selected);
+        selected.push(randomIndex);
+    }
+    let { totalScore, maxTotal } = renderResult(selected);
+    clickCount++;
+    updateStatsUI(clickCount, totalScore, maxTotal);
+}
+
+// 一键变换：循环直到满足启用的条件
+function findCustomTargetOptions() {
+    const useTarget = targetScoreCheckbox.checked;
+    const useMax = maxScoreCheckbox.checked;
+    const minScore = useTarget ? targetScore : -Infinity;
+    const maxThreshold = useMax ? maxScoreThreshold : -Infinity;
+
+    clickCount = 0;
+    let localSearchCount = 0;
+    let found = false;
+
+    while (true) {
+        localSearchCount++;
+        let selected = [];
+        while (selected.length < 3) selected.push(weightedRandom(selected));
+
+        // 用临时渲染计算分数（不操作DOM以提速）
+        let totalScore = 0;
+        let maxTotal = 0;
+        selected.forEach(index => {
+            let { opt, val, score } = generateSlotData(index);
+            totalScore += score;
+            maxTotal += getMaxScore(opt[0]);
+        });
+
+        const okTarget = !useTarget || totalScore >= minScore;
+        const okMax = !useMax || maxTotal >= maxThreshold;
+
+        if (okTarget && okMax) {
+            renderResult(selected);
+            clickCount += localSearchCount;
+            updateStatsUI(clickCount, totalScore, maxTotal);
+            found = true;
+            break;
+        }
+
+        if (localSearchCount > 10000000) {
+            alert("模拟超过 1,000 万次仍未达成条件，请尝试降低目标。");
+            renderResult(selected);
+            clickCount += localSearchCount;
+            updateStatsUI(clickCount, totalScore, maxTotal);
+            break;
+        }
+    }
+}
+
+// 重置模拟
+function resetSimulation() {
+    clickCount = 0;
+    updateStatsUI(0, 0, 0);
+    resultLinesDiv.innerHTML = `<div class="empty-placeholder">点击 [属性变换] 开始洗练</div>`;
+}
+
+// ============================================================
+// 分值计算器
+// ============================================================
+function initCalc() {
+    // 按 scoreTable 分组
+    const grouped = {};
+    scoreTable.forEach(([name, value, score]) => {
+        if (!grouped[name]) grouped[name] = [];
+        grouped[name].push({ value, score });
+    });
+
+    attrGridContainer.innerHTML = '';
+
+    Object.keys(grouped).forEach(name => {
+        const row = document.createElement('div');
+        row.className = 'attr-row';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'attr-name';
+        nameSpan.textContent = name;
+        row.appendChild(nameSpan);
+
+        const select = document.createElement('select');
+        select.className = 'calc-select';
+
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '— 请选择 —';
+        select.appendChild(emptyOpt);
+
+        grouped[name].sort((a, b) => b.value - a.value);
+        grouped[name].forEach((entry, idx) => {
+            const opt = document.createElement('option');
+            opt.value = entry.score;
+            let unit = name.includes("*强化等级") ? "" : "%";
+            opt.textContent = `${entry.value}${unit}`;
+            // 按档位染色：最高档金黄，第2~3档紫色，其余绿色
+            if (idx === 0) opt.style.color = '#ffd700';
+            else if (idx <= 2) opt.style.color = '#b388ff';
+            else opt.style.color = '#4caf50';
+            select.appendChild(opt);
+        });
+
+        select.addEventListener('change', () => {
+            calcTotalScore();
+            updateCalcDisabledState();
+        });
+        row.appendChild(select);
+        attrGridContainer.appendChild(row);
+    });
+}
+
+// 限制最多同时选择 3 条属性
+function updateCalcDisabledState() {
+    const allSelects = document.querySelectorAll('.calc-select');
+    let selectedCount = 0;
+    allSelects.forEach(s => { if (s.value !== '') selectedCount++; });
+
+    allSelects.forEach(s => {
+        if (s.value === '' && selectedCount >= 3) {
+            s.disabled = true;
+        } else {
+            s.disabled = false;
+        }
+    });
+}
+
+function calcTotalScore() {
+    let total = 0;
+    document.querySelectorAll('.calc-select').forEach(sel => {
+        total += parseFloat(sel.value || 0);
+    });
+    calcTotalEl.textContent = total.toFixed(1);
+}
+
+function resetCalc() {
+    document.querySelectorAll('.calc-select').forEach(sel => sel.value = '');
+    calcTotalScore();
+    updateCalcDisabledState();
+}
+
+// ============================================================
+// 目标分值 / 上限分 勾选联动
+// ============================================================
+function updateTargetDisabled() {
+    const disabled = !targetScoreCheckbox.checked;
+    targetScoreInput.disabled = disabled;
+    targetMinus.disabled = disabled;
+    targetPlus.disabled = disabled;
+}
+
+function updateMaxDisabled() {
+    const disabled = !maxScoreCheckbox.checked;
+    maxScoreInput.disabled = disabled;
+    maxScoreMinus.disabled = disabled;
+    maxScorePlus.disabled = disabled;
+}
+
+function setTargetScore(value) {
+    if (isNaN(value)) value = 0;
+    if (value < 0) value = 0;
+    if (value > 200) value = 200;
+    targetScore = Math.round(value * 2) / 2; // 0.5 步进
+    targetScoreInput.value = targetScore;
+}
+
+function setMaxScore(value) {
+    if (isNaN(value)) value = 0;
+    if (value < 0) value = 0;
+    if (value > 200) value = 200;
+    maxScoreThreshold = Math.round(value * 2) / 2;
+    maxScoreInput.value = maxScoreThreshold;
+}
+
+// ============================================================
+// 事件绑定
+// ============================================================
+transformBtn.addEventListener('click', () => setTimeout(getRandomOptions, 10));
+searchBtn.addEventListener('click', () => setTimeout(findCustomTargetOptions, 10));
+resetBtn.addEventListener('click', resetSimulation);
+calcResetBtn.addEventListener('click', resetCalc);
+
+targetScoreCheckbox.addEventListener('change', updateTargetDisabled);
+targetScoreInput.addEventListener('input', e => setTargetScore(parseFloat(e.target.value)));
+targetMinus.addEventListener('click', () => setTargetScore(targetScore - 0.5));
+targetPlus.addEventListener('click', () => setTargetScore(targetScore + 0.5));
+
+maxScoreCheckbox.addEventListener('change', updateMaxDisabled);
+maxScoreInput.addEventListener('input', e => setMaxScore(parseFloat(e.target.value)));
+maxScoreMinus.addEventListener('click', () => setMaxScore(maxScoreThreshold - 0.5));
+maxScorePlus.addEventListener('click', () => setMaxScore(maxScoreThreshold + 0.5));
+
+// ============================================================
+// 初始化
+// ============================================================
+window.onload = function() {
+    initCalc();
+    updateTargetDisabled();
+    updateMaxDisabled();
+};
+</script>
+</body>
+</html>
