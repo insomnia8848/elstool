@@ -1365,6 +1365,14 @@
             // 启动时拍一张条件快照（运行期间不改条件，避免每帧重读 DOM）
             const snapshot = getEffectConditionSnapshot();
 
+            // 判断是否有任何停止条件启用（目标分值 / 上限分 / 效果设定）
+            const hasTarget = (minScore !== Infinity);
+            const hasMax = (maxScoreThreshold !== Infinity);
+            const hasEffect = !!(snapshot && snapshot.checks.length);
+            const noCondition = !hasTarget && !hasMax && !hasEffect;
+            // 无条件时默认执行 1000 次；有条件时用安全上限
+            const effectiveMax = noCondition ? 1000 : MAX_BATCH_TOTAL;
+
             // 进度提示
             resultLinesDiv.innerHTML = `<div class="empty-placeholder">⚡ 极速洗练中... 已尝试 0 次</div>`;
             leftTotalScoreSpan.textContent = `总分: --`;
@@ -1384,8 +1392,8 @@
                         return;
                     }
 
-                    // 安全上限：防止极端情况下无限循环
-                    if (batchAttempts >= MAX_BATCH_TOTAL) {
+                    // 达到执行上限（无条件时1000次，有条件时安全上限）
+                    if (batchAttempts >= effectiveMax) {
                         renderTransformResult(lastBatchResult.drawItems, lastBatchResult.totalScore);
                         lastBatchResult = null;
                         stopAuto();
