@@ -817,16 +817,20 @@ function getRandomOptions() {
     updateStatsUI(clickCount, totalScore, maxTotal);
 }
 
-// 一键变换：循环直到满足启用的条件
+// 一键变换：循环直到满足启用的条件（无目标时默认执行 1000 次）
 function findCustomTargetOptions() {
     const useTarget = targetScoreCheckbox.checked;
     const useMax = maxScoreCheckbox.checked;
     const minScore = useTarget ? targetScore : -Infinity;
     const maxThreshold = useMax ? maxScoreThreshold : -Infinity;
 
-    clickCount = 0;
+    const noCondition = !useTarget && !useMax;
+    const maxIterations = noCondition ? 1000 : 10000000;
+
     let localSearchCount = 0;
-    let found = false;
+    let lastSelected = [];
+    let lastTotalScore = 0;
+    let lastMaxTotal = 0;
 
     while (true) {
         localSearchCount++;
@@ -842,6 +846,11 @@ function findCustomTargetOptions() {
             maxTotal += getMaxScore(opt[0]);
         });
 
+        // 记录最后一次结果（无目标时满 1000 次后展示）
+        lastSelected = selected;
+        lastTotalScore = totalScore;
+        lastMaxTotal = maxTotal;
+
         const okTarget = !useTarget || totalScore >= minScore;
         const okMax = !useMax || maxTotal >= maxThreshold;
 
@@ -849,15 +858,21 @@ function findCustomTargetOptions() {
             renderResult(selected);
             clickCount += localSearchCount;
             updateStatsUI(clickCount, totalScore, maxTotal);
-            found = true;
             break;
         }
 
-        if (localSearchCount > 10000000) {
-            alert("模拟超过 1,000 万次仍未达成条件，请尝试降低目标。");
-            renderResult(selected);
-            clickCount += localSearchCount;
-            updateStatsUI(clickCount, totalScore, maxTotal);
+        if (localSearchCount >= maxIterations) {
+            if (noCondition) {
+                // 无目标时，执行满 1000 次后显示最后一次结果
+                renderResult(lastSelected);
+                clickCount += localSearchCount;
+                updateStatsUI(clickCount, lastTotalScore, lastMaxTotal);
+            } else {
+                alert("模拟超过 " + maxIterations.toLocaleString() + " 次仍未达成条件，请尝试降低目标。");
+                renderResult(lastSelected);
+                clickCount += localSearchCount;
+                updateStatsUI(clickCount, lastTotalScore, lastMaxTotal);
+            }
             break;
         }
     }
