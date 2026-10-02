@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <!-- ============================================================
-   冰装模拟器（纯静态托管版）
-   单文件纯前端版（双击即用 / 静态托管）
+   冰装模拟器
+   单文件纯前端版（双击即用）
    - 暗色玻璃拟态 UI
    - localStorage 持久化
+   - Tesseract.js 本地 OCR + 大模型 API 模式
    - 详细中文注释，方便记事本编辑
 ============================================================ -->
 <html lang="zh-CN">
@@ -11,6 +12,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>冰装模拟器</title>
+
+<!-- Tesseract.js 本地 OCR 库（仅 OCR 时使用，不影响其他功能） -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
 
 <style>
 /* ============================================================
@@ -500,6 +504,42 @@ select.btn { padding-right: 8px; }
   margin: 0;
 }
 #panelEditBody input[type=number] { -moz-appearance: textfield; }
+/* 面板标题旁的"查询攻击力百分比"链接 */
+.panel-query-link {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--accent);
+  margin-left: 8px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.panel-query-link:hover { opacity: 0.75; }
+/* 攻击力查询弹窗 */
+.atk-query-note {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.atk-query-list {
+  margin: 0 0 16px 0;
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text);
+}
+.atk-query-list li { margin-bottom: 2px; }
+.atk-query-inputs {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.atk-query-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.atk-query-item .a-name { min-width: 72px; }
 /* —— 属性对比弹窗：两列并排 —— */
 .cmp-cols {
   display: grid;
@@ -534,6 +574,48 @@ select.btn { padding-right: 8px; }
   border-radius: 8px;
   background: var(--accent);
   color: #fff;
+}
+/* 对比列标题：方案名 + 右侧元信息（标签/总提升） */
+.cmp-col-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+.cmp-col-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+/* 总提升百分比显示 */
+.cmp-total-gain {
+  font-size: 12px;
+  font-weight: 700;
+  cursor: help;
+  position: relative;
+  white-space: nowrap;
+}
+.cmp-total-gain.gain-up   { color: #dc2626; }
+.cmp-total-gain.gain-down { color: #16a34a; }
+.cmp-total-gain.gain-eq   { color: var(--text-faint); }
+/* 鼠标悬停显示注释（自定义 tooltip，最多3行显示完全） */
+.cmp-total-gain:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: rgba(0,0,0,0.88);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+  max-width: 360px;
+  z-index: 1200;
+  pointer-events: none;
 }
 .cmp-col-list {
   /* 复用 .attr-list 的 grid 2 列 */
@@ -640,6 +722,10 @@ select.btn { padding-right: 8px; }
   z-index: 1000;
   padding: 20px;
 }
+/* 攻击力查询弹窗：需在面板编辑弹窗之上 */
+#attackQueryMask { z-index: 1200; }
+/* 确认弹窗：需在所有弹窗之上 */
+#confirmMask { z-index: 1300; }
 .modal-mask.active {
   display: flex;
   animation: maskIn 0.15s ease;
@@ -709,7 +795,7 @@ select.btn { padding-right: 8px; }
 }
 
 /* ============================================================
-   六、表单基础样式（设置弹窗等共用）
+   六、录入弹窗内部样式
 ============================================================ */
 .entry-section {
   margin-bottom: 20px;
@@ -719,6 +805,35 @@ select.btn { padding-right: 8px; }
   color: var(--text-dim);
   margin-bottom: 10px;
   font-weight: 600;
+}
+/* 录入弹窗左右两列布局 */
+.entry-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;       /* 两列高度不一时顶部对齐 */
+}
+.entry-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* 列内子项间距由 entry-section margin-bottom 控制 */
+}
+/* 弹窗窄时（< 700px）回退单列 */
+@media (max-width: 700px) {
+  .entry-two-col { grid-template-columns: 1fr; }
+}
+.entry-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.entry-row label {
+  font-size: 13px;
+  color: var(--text-dim);
+  min-width: 70px;
 }
 .input {
   height: 30px;
@@ -752,6 +867,43 @@ textarea.input {
   line-height: 1.5;
   width: 100%;
 }
+
+/* OCR 区域 */
+.ocr-box {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: rgba(0,0,0,0.025);
+}
+.ocr-box:hover, .ocr-box.dragover {
+  border-color: var(--accent);
+  background: rgba(108,142,255,0.08);
+}
+.ocr-box .ohint { color: var(--text-dim); font-size: 13px; }
+.ocr-preview {
+  max-width: 200px;
+  max-height: 200px;
+  margin: 8px auto;
+  border-radius: 6px;
+  display: none;
+}
+.ocr-preview.show { display: block; }
+.ocr-raw {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-faint);
+  background: rgba(0,0,0,0.3);
+  padding: 8px;
+  border-radius: 6px;
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+  display: none;
+}
+.ocr-raw.show { display: block; }
 
 /* ============================================================
    七、装备库弹窗
@@ -842,6 +994,36 @@ textarea.input {
   color: var(--text-dim);
   line-height: 1.5;
   word-break: break-all;
+}
+/* 当前已选中的套装：高亮边框 + 背景，方便一眼看出当前穿的是哪件 */
+.pick-item.pick-current-selected {
+  border-color: var(--accent);
+  background: rgba(108,142,255,0.10);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+/* 顶部「当前装备」信息块 */
+.pick-current {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(108,142,255,0.05);
+  border: 1px solid rgba(108,142,255,0.2);
+}
+.pick-current .pname {
+  font-size: 14px;
+  font-weight: 600;
+}
+.pick-current .pick-short {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+.pick-current .pattrs {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  word-break: break-all;
+  text-align: right;
+  flex: 1;
 }
 
 /* 套装效果激活弹窗 */
@@ -945,8 +1127,10 @@ textarea.input {
     <button class="btn btn-primary" onclick="openLibraryModal()">冰装库</button>
     <button class="btn" onclick="clearAllSlots()">清空</button>
 
-    <!-- 右侧深蓝组：设置 -->
+    <!-- 右侧深蓝组：设置 + 备份还原 -->
     <span style="flex:1;"></span>
+    <button class="btn btn-ghost" onclick="backupData()">备份</button>
+    <button class="btn btn-ghost" onclick="restoreData()">还原</button>
     <button class="btn" onclick="openSettingsModal()">设置</button>
   </div>
 
@@ -1169,15 +1353,60 @@ textarea.input {
 <div class="modal-mask" id="panelEditMask">
   <div class="modal xl">
     <div class="modal-header">
-      <div class="modal-title">编辑面板数值<span style="font-size:11px;font-weight:400;color:var(--text-dim);margin-left:8px;">输入脱下所有冰装后的数值</span></div>
+      <div class="modal-title">编辑面板数值<span class="panel-query-link" onclick="openAttackQueryModal()" title="点击查看攻击力百分比包含哪些内容并快速填入">查询攻击力百分比</span><br><span style="font-size:11px;font-weight:400;color:var(--text-dim);">展示数值为脱去所有冰装后的数值</span></div>
       <button class="modal-close" onclick="closeModal('panelEditMask')">×</button>
     </div>
     <div class="modal-body">
       <div id="panelEditBody" style="max-height:60vh;overflow-y:auto;"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" onclick="savePanelValues()">保存</button>
+      <button class="btn btn-primary" onclick="savePanelValues(false)">保存</button>
+      <button class="btn btn-primary" onclick="savePanelValues(true)" title="输入值包含当前冰装属性，保存时自动减去装备属性得到裸值">保存（包含当前冰装）</button>
       <button class="btn btn-ghost" onclick="closeModal('panelEditMask')">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 攻击力查询方式弹窗：不能失焦返回，只能点确认/关闭 -->
+<div class="modal-mask" id="attackQueryMask">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">攻击力查询方式</div>
+      <button class="modal-close" onclick="closeModal('attackQueryMask')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="atk-query-note">攻击力百分比包括：</div>
+      <ol class="atk-query-list">
+        <li>武器魔力石+变换/强化等级效果</li>
+        <li>工会喷泉（不包括工会技能）</li>
+        <li>左四装备芯片效果</li>
+        <li>左四装备炼制效果</li>
+        <li>左四装备变换效果</li>
+        <li>饰品戒指效果</li>
+        <li>冰装套装+冰装单件效果</li>
+        <li>宠物被动效果</li>
+        <li>神物进化等级效果（3%）</li>
+        <li>神物变换效果+神物精灵石效果（颜色套装效果不算）</li>
+        <li>一件套效果</li>
+        <li>收集册效果+互助效果（若有）</li>
+        <li>饰品鉴定/自带效果</li>
+      </ol>
+      <div class="atk-query-inputs">
+        <div class="atk-query-item">
+          <span class="a-name">物理攻击力</span>
+          <input class="input" type="number" min="0" step="0.1" id="atkQueryPhys" placeholder="0" style="width:100px;text-align:right;">
+          <span style="color:var(--text-faint);">%</span>
+        </div>
+        <div class="atk-query-item">
+          <span class="a-name">魔法攻击力</span>
+          <input class="input" type="number" min="0" step="0.1" id="atkQueryMag" placeholder="0" style="width:100px;text-align:right;">
+          <span style="color:var(--text-faint);">%</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="applyAttackQuery()">确认填入</button>
+      <button class="btn btn-ghost" onclick="closeModal('attackQueryMask')">取消</button>
     </div>
   </div>
 </div>
@@ -1226,7 +1455,7 @@ textarea.input {
    八、数据定义区
 ============================================================ */
 
-/* —— 属性词典：16种，含别称 —— */
+/* —— 属性词典：16种，含别称（OCR/手动文本模糊匹配用） —— */
 /* 每条：id 唯一标识；label 面板显示全称；aliases 匹配用别称数组 */
 const ATTR_DICT = [
   // —— 基础能力值 ——
@@ -1241,14 +1470,17 @@ const ATTR_DICT = [
   { id: "boss_dmg",        label: "给BOSS怪物造成的伤害增加",       aliases: ["给BOSS怪物造成的伤害增加","王伤"],   category: "attack" },
   { id: "dot_dmg",         label: "攻击造成持续伤害",                aliases: ["攻击造成持续伤害","流血","持续伤害","3秒内造成"], category: "attack" },
   // —— 攻击 / HP条件伤害增加（归入攻击栏，不再单独分组） ——
-  { id: "high_hp_dmg",     label: "攻击HP50%以上的敌人伤害增加",     aliases: ["攻击HP50%以上的敌人","强者","50%以上的"], category: "attack", fullRow: true },
-  { id: "low_hp_dmg",      label: "攻击HP50%以下的敌人伤害增加",     aliases: ["攻击HP50%以下敌人的伤害","弱者","50%以下的"], category: "attack", fullRow: true },
-  { id: "hp100_dmg",       label: "攻击HP100%以下的敌人伤害增加",    aliases: ["攻击HP100%以下敌人的伤害","百增","估计HP100%以下敌人的伤害","100%以下的"], category: "attack", fullRow: true },
+  //   短 alias "50%以上的" "50%以下的" "100%以下的" 用于 OCR 模糊匹配
+  //   长度排序保证 100% 优先于 50%（更长优先）
+  { id: "high_hp_dmg",     label: "攻击HP50%以上的敌人伤害增加",     aliases: ["攻击HP50%以上的敌人","强者","50%以上的","50%以上敌人","体力50%以上"], category: "attack", fullRow: true },
+  { id: "low_hp_dmg",      label: "攻击HP50%以下的敌人伤害增加",     aliases: ["攻击HP50%以下敌人的伤害","弱者","50%以下的","50%以下敌人","体力50%以下"], category: "attack", fullRow: true },
+  { id: "hp100_dmg",       label: "攻击HP100%以下的敌人伤害增加",    aliases: ["攻击HP100%以下敌人的伤害","百增","估计HP100%以下敌人的伤害","100%以下的","100%以下敌人","体力100%以下"], category: "attack", fullRow: true },
   // —— 技能 ——
+  //   加单字 alias "强烈" "超越"：OCR 一行多个属性拆分用
   { id: "p2_skill_dmg",    label: "强烈的技能伤害增加",             aliases: ["强烈的技能伤害增加","P2","强烈"],    category: "skill" },
   { id: "p3_skill_dmg",    label: "超越的技能伤害增加",              aliases: ["超越的技能伤害增加","P3","超越"],    category: "skill" },
   { id: "cd_reduce",       label: "技能冷却时间减少",                aliases: ["技能冷却时间减少","CD","技能冷却时间"], category: "skill" },
-  { id: "all_skill_dmg",   label: "所有技能伤害增加",                aliases: ["所有技能伤害增加","全技"],           category: "skill" },
+  { id: "all_skill_dmg",   label: "所有技能伤害增加",                aliases: ["所有技能伤害增加","所有技能伤害","全技"],           category: "skill" },
   // —— 辅助 ——
   { id: "mp_cost_reduce",  label: "技能MP消耗减少",                  aliases: ["技能MP消耗减少","减耗","MP消耗"],  category: "support" }
 ];
@@ -1391,7 +1623,7 @@ function stoneValue(side, part, stoneId) {
 }
 
 /* —— localStorage key —— */
-const LS_KEY = "iceSim_data_v2";
+const LS_KEY = "elight-set-data-v4";
 
 /* —— 全局状态 —— */
 let state = {
@@ -1399,6 +1631,13 @@ let state = {
   builds: [],       // 所有搭配方案
   currentBuildId: null,
   settings: {
+    ocrMode: "local",        // local | api
+    parseMode: "local",      // 属性解析模式：local=本地正则 | api=大模型
+    apiProxyUrl: "http://127.0.0.1:8787/ocr",
+    apiKey: "",              // 用户的 API Key（本地 localStorage，发给别人不会带）
+    apiUrl: "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+    model: "doubao-1-5-vision-pro-32k-250115",
+    lang: "chi_sim",         // chi_sim | chi_sim+eng
     abbrMode: false          // 属性名称缩写开关：true=所有属性显示用缩写
   },
   panelValues: {},    // 用户手动输入的面板数值（attrId -> 数值），均为"渐减后/上限后"的实际值
@@ -1457,12 +1696,17 @@ function matchAttrDetailed(text) {
   return null;
 }
 
+/* 创建空属性对象 */
+function makeAttr(attrId = "", value = null, unit = "%", isDesc = false, raw = "") {
+  return { attrId, value, unit, isDesc, raw };
+}
+
 /* ============================================================
-   十、持久化与加载（data.json + localStorage）
+   十、持久化与加载
 ============================================================ */
 
 function saveState() {
-  /* periods 来自 data.json（只读），不保存到 localStorage */
+  /* periods 来自 data.json（只读），不保存到 localStorage；只保存用户数据 */
   const payload = JSON.stringify({
     builds: state.builds,
     currentBuildId: state.currentBuildId,
@@ -1475,6 +1719,7 @@ function saveState() {
   }
 }
 
+/* 静态版无后端，saveStateSync 直接复用 saveState */
 async function saveStateSync() {
   saveState();
   return true;
@@ -1482,15 +1727,14 @@ async function saveStateSync() {
 
 async function loadState() {
   /* —— 第一步：从 data.json 加载装备库（periods），只读 —— */
-  /* 部署到 OSS 等静态托管后，fetch 可正常读取同目录下的 data.json */
-  /* 本地双击打开（file://协议）时 fetch 会被浏览器拦截，此时跳过 */
+  /* 部署到静态托管后，fetch 可正常读取同目录下的 data.json */
+  let fileData = null;
   try {
     const resp = await fetch('data.json');
     if (resp.ok) {
-      const fileData = await resp.json();
+      fileData = await resp.json();
       if (fileData.periods && Array.isArray(fileData.periods)) {
         state.periods = fileData.periods;
-        /* 确保每个套装有必要字段 */
         state.periods.forEach(p => {
           if (!p.color) p.color = "#3a3d4b";
           if (!p.shortName) p.shortName = p.name;
@@ -1502,13 +1746,14 @@ async function loadState() {
   }
 
   /* —— 第二步：从 localStorage 加载用户数据（搭配方案、设置、面板） —— */
+  /* data.json 只含冰装库（periods），用户数据全部存 localStorage */
   let data = null;
   const raw = localStorage.getItem(LS_KEY);
   if (raw) {
     try { data = JSON.parse(raw); } catch (_) {}
   }
 
-  /* 首次使用：创建默认方案 */
+  /* localStorage 没数据 → 首次使用，创建默认空方案 */
   if (!data) {
     const b = { id: uid(), name: "方案1", createdAt: Date.now(), slots: {}, activatedSets: [], magicStones: {} };
     state.builds = [b];
@@ -1524,13 +1769,32 @@ async function loadState() {
     state.settings = Object.assign(state.settings, data.settings || {});
     state.panelValues = data.panelValues || {};
     state.includePanel = data.includePanel || false;
-  } catch (e) { console.error("数据加载失败：", e); }
-
-  /* 兜底：没有方案时创建默认方案 */
-  if (!state.builds || state.builds.length === 0) {
-    const b = { id: uid(), name: "方案1", createdAt: Date.now(), slots: {}, activatedSets: [], magicStones: {} };
-    state.builds = [b];
-    state.currentBuildId = b.id;
+    // 兼容：builds 没有 activatedSets 字段
+    state.builds.forEach(b => { if (!b.activatedSets) b.activatedSets = []; });
+    // 兼容：builds 没有 magicStones 字段
+    state.builds.forEach(b => { if (!b.magicStones) b.magicStones = {}; });
+    // 兼容：旧 slots 用裸部位名（如 "上衣"），同名左右件会冲突
+    // 迁移成复合 key：left|上衣 / right|上衣 严格区分
+    state.builds.forEach(b => {
+      if (!b.slots) { b.slots = {}; return; }
+      const migrated = {};
+      Object.entries(b.slots).forEach(([key, val]) => {
+        if (key.includes("|")) { migrated[key] = val; return; }  // 已是复合 key
+        // 旧 key：按 LEFT_PARTS 判断左右（发型/上衣/下衣/手套/鞋子 → 左；其余 → 右）
+        const side = LEFT_PARTS.includes(key) ? "left" : "right";
+        migrated[side + "|" + key] = val;
+      });
+      b.slots = migrated;
+    });
+    if (state.builds.length === 0) {
+      const b = { id: uid(), name: "方案1", createdAt: Date.now(), slots: {}, activatedSets: [], magicStones: {} };
+      state.builds = [b];
+      state.currentBuildId = b.id;
+    }
+  } catch (e) {
+    toast("数据损坏，重置为空", "error");
+    state.builds = [{ id: uid(), name: "方案1", createdAt: Date.now(), slots: {}, activatedSets: [], magicStones: {} }];
+    state.currentBuildId = state.builds[0].id;
   }
 }
 
@@ -1822,22 +2086,67 @@ function openPanelEditModal() {
   openModal("panelEditMask");
 }
 
-/* 保存面板数值 */
-function savePanelValues() {
-  const inputs = document.querySelectorAll("#panelEditBody input[data-attr-id]");
-  inputs.forEach(inp => {
-    const id = inp.dataset.attrId;
-    const raw = inp.value.trim();
-    if (raw === "" || isNaN(Number(raw))) {
-      delete state.panelValues[id];
-    } else {
-      state.panelValues[id] = Number(raw);
+/* 保存面板数值
+   withEquip=false → 直接保存输入值（裸值），弹出"确认以裸装数值保存？"
+   withEquip=true  → 输入值为含冰装的渐减后显示值，扣除当前方案装备属性（单件+套装+魔法石）后保存裸值，
+                     弹出"确认以正装面板保存？" */
+function savePanelValues(withEquip) {
+  const build = currentBuild();
+  const msg = withEquip
+    ? `确认以<span style="color:#dc2626;font-weight:700;">正装面板</span>保存？<br><span style="font-size:12px;color:var(--text-dim);">请确认当前输入数值为穿着当前选择方案冰装的面板数值</span>`
+    : `确认以<span style="color:#dc2626;font-weight:700;">裸装数值</span>保存？<br><span style="font-size:12px;color:var(--text-dim);">请确认当前输入数值为脱去所有冰装后的面板数值</span>`;
+  openConfirm("确认保存", msg, () => {
+    // 先读取所有输入值（渐减后显示值）
+    const inputVals = {};
+    document.querySelectorAll("#panelEditBody input[data-attr-id]").forEach(inp => {
+      const id = inp.dataset.attrId;
+      const raw = inp.value.trim();
+      inputVals[id] = (raw === "" || isNaN(Number(raw))) ? null : Number(raw);
+    });
+    // 若"包含当前冰装"，扣除当前方案的装备属性（单件+套装+魔法石）
+    // 输入值是渐减后显示值，需反渐减→扣装备→再渐减，得到裸面板值
+    if (withEquip && build) {
+      const equipSums = calcBuildSums(build);   // 含魔法石的装备原始属性和
+      Object.keys(inputVals).forEach(id => {
+        if (inputVals[id] === null) return;
+        const totalRaw = reverseDiminish(id, inputVals[id]);  // 反渐减得总原始值
+        const nakedRaw = totalRaw - (equipSums[id] || 0);     // 扣除装备原始值
+        let naked = diminish(id, Math.max(nakedRaw, 0));      // 再渐减得裸面板值
+        if (naked < 0) naked = 0;
+        inputVals[id] = naked;
+      });
     }
+    // 写入 state.panelValues（始终保存裸值）
+    Object.keys(inputVals).forEach(id => {
+      if (inputVals[id] === null) {
+        delete state.panelValues[id];
+      } else {
+        state.panelValues[id] = inputVals[id];
+      }
+    });
+    saveState();
+    closeModal("panelEditMask");
+    renderAttrPanel();
+    toast(withEquip ? "面板数值已保存（已扣除冰装属性）" : "面板数值已保存", "success");
   });
-  saveState();
-  closeModal("panelEditMask");
-  renderAttrPanel();
-  toast("面板数值已保存", "success");
+}
+
+/* 打开攻击力查询方式弹窗：预填当前面板的物攻/魔攻值 */
+function openAttackQueryModal() {
+  document.getElementById("atkQueryPhys").value = state.panelValues.phys_atk || "";
+  document.getElementById("atkQueryMag").value  = state.panelValues.mag_atk  || "";
+  openModal("attackQueryMask");
+}
+
+/* 确认填入：把攻击力查询弹窗的数值写回面板编辑弹窗的物攻/魔攻输入框 */
+function applyAttackQuery() {
+  const phys = document.getElementById("atkQueryPhys").value.trim();
+  const mag  = document.getElementById("atkQueryMag").value.trim();
+  const physInput = document.querySelector('#panelEditBody input[data-attr-id="phys_atk"]');
+  const magInput  = document.querySelector('#panelEditBody input[data-attr-id="mag_atk"]');
+  if (physInput) physInput.value = phys;
+  if (magInput)  magInput.value  = mag;
+  closeModal("attackQueryMask");
 }
 
 /* 切换"包含面板"开关 */
@@ -2019,6 +2328,67 @@ function getBuildActual(build, includePanel) {
   return actual;
 }
 
+/* 计算方案的理论输出值（用于对比窗口的"总提升"百分比）
+   计算规则（仅供参考的简化模型）：
+   - 基础值 150000
+   - 攻击力：物攻/魔攻取较高者，乘数 1 + max/100
+   - 暴击伤害：面板值为总爆伤(含150%基础)，最低150；无面板时用 150+装备
+   - 极大化：固定 ×1.45（默认满极大化）
+   - 暴击率：不参与（假设满暴击，爆伤全额生效）
+   - 适应力/CD减/MP减耗：不参与
+   - 强者(high_hp_dmg) + 弱者(low_hp_dmg)：取平均值，乘数 1 + avg/100
+   - 强烈(P2) + 超越(P3)：取最高值，乘数 1 + max/100
+   - 其余属性（两极化/王伤/持续伤害/百增/全技伤）：乘数 1 + 值/100
+   - 所有乘数相乘，再乘以基础值 */
+function calcBuildOutput(actual) {
+  const base = 150000;                    // 基础输出值
+  let mult = 1;                           // 总乘数，各属性相乘
+  // 1) 攻击力：物攻/魔攻取较高者（角色只用一种攻击类型）
+  const phys = actual.phys_atk || 0;
+  const mag  = actual.mag_atk  || 0;
+  mult *= 1 + Math.max(phys, mag) / 100;
+  // 2) 暴击伤害：
+  //    - 无面板时：总爆伤 = 150(基础) + 装备爆伤，乘数 = 总/100
+  //    - 有面板时：面板值为总爆伤(已含150%基础)，actual.crit_dmg = 装备 + 面板
+  //      面板值最低 150（基础），低于150按150算；面板>=150时不再额外+150
+  const panelCrit = state.panelValues && state.panelValues.crit_dmg;
+  let critMult;
+  if (panelCrit !== undefined && panelCrit !== null) {
+    const pc = Number(panelCrit);
+    const equipCrit = (actual.crit_dmg || 0) - pc;   // 从总值中拆出装备部分
+    if (pc >= 150) {
+      critMult = (actual.crit_dmg || 0) / 100;       // 面板已含150基础，直接用
+    } else {
+      critMult = (150 + Math.max(equipCrit, 0)) / 100;  // 面板不足150，用150基础+装备
+    }
+  } else {
+    critMult = (150 + (actual.crit_dmg || 0)) / 100;   // 无面板，150基础+装备
+  }
+  mult *= critMult;
+  // 3) 极大化：默认满，固定 ×1.45
+  mult *= 1.45;
+  // 4) 两极化：上限60%，超出按60算
+  const pol = Math.min(actual.polarize || 0, 60);
+  mult *= 1 + pol / 100;
+  // 5) 给BOSS伤害
+  mult *= 1 + (actual.boss_dmg || 0) / 100;
+  // 6) 持续伤害
+  mult *= 1 + (actual.dot_dmg || 0) / 100;
+  // 7) 强者 + 弱者 取平均值，算一条属性
+  const strong = actual.high_hp_dmg || 0;
+  const weak   = actual.low_hp_dmg  || 0;
+  mult *= 1 + (strong + weak) / 2 / 100;
+  // 8) 百增（HP100%以下伤害）
+  mult *= 1 + (actual.hp100_dmg || 0) / 100;
+  // 9) 所有技能伤害
+  mult *= 1 + (actual.all_skill_dmg || 0) / 100;
+  // 10) 强烈(P2) + 超越(P3) 取最高值，低的无视
+  const p2 = actual.p2_skill_dmg || 0;
+  const p3 = actual.p3_skill_dmg || 0;
+  mult *= 1 + Math.max(p2, p3) / 100;
+  return base * mult;
+}
+
 /* 打开对比弹窗：列出所有方案让选另一个 */
 function openCompareModal() {
   if (state.builds.length < 2) {
@@ -2056,6 +2426,30 @@ function renderCompareBody() {
   const fmt = n => parseFloat(Math.round(n * 100) / 100).toString();
   const actualCur = getBuildActual(cur, incPanel);
   const actualOther = getBuildActual(other, incPanel);
+
+  /* 计算"总提升"百分比：对比方案输出 相对 当前方案输出 的变化
+     - 总提升计算始终包含当前面板（不受"包含当前面板"开关影响）
+     - 不显示具体输出数值，只显示百分比提升/下降
+     - 红↑ 表示对比方案输出更高，绿↓ 表示更低 */
+  const actualCurOut = getBuildActual(cur, true);
+  const actualOtherOut = getBuildActual(other, true);
+  const outCur = calcBuildOutput(actualCurOut);
+  const outOther = calcBuildOutput(actualOtherOut);
+  const gainPct = outCur > 0 ? ((outOther - outCur) / outCur) * 100 : 0;
+  // 总提升显示文字与样式类
+  let gainText, gainCls;
+  if (gainPct > 0.001) {
+    gainText = `总提升约 +${fmt(gainPct)}%↑`;
+    gainCls = "gain-up";
+  } else if (gainPct < -0.001) {
+    gainText = `总提升约 ${fmt(gainPct)}%↓`;
+    gainCls = "gain-down";
+  } else {
+    gainText = `总提升约 0%`;
+    gainCls = "gain-eq";
+  }
+  // 鼠标悬停注释
+  const gainTooltip = "仅供参考，暴击、极大默认满，不考虑适应力与CD与减耗，强弱按平均算，单P取高值";
 
   /* 渲染单列属性面板（实际值，按4类分组）
      isCompare=true 时按差异上色（红/绿 + 箭头） */
@@ -2097,11 +2491,17 @@ function renderCompareBody() {
   body.innerHTML = `
     <div class="cmp-cols">
       <div class="cmp-col">
-        <div class="cmp-col-title">${escapeHtml(cur.name)}<span class="cmp-tag">当前</span></div>
+        <div class="cmp-col-title"><span class="cmp-col-name">${escapeHtml(cur.name)}</span><span class="cmp-tag">当前</span></div>
         <div class="cmp-col-list">${renderColumn(actualCur, false)}</div>
       </div>
       <div class="cmp-col">
-        <div class="cmp-col-title">${escapeHtml(other.name)}<span class="cmp-tag">对比</span></div>
+        <div class="cmp-col-title">
+          <span class="cmp-col-name">${escapeHtml(other.name)}</span>
+          <span class="cmp-col-meta">
+            <span class="cmp-tag">对比</span>
+            <span class="cmp-total-gain ${gainCls}" data-tooltip="${escapeHtml(gainTooltip)}">${gainText}</span>
+          </span>
+        </div>
         <div class="cmp-col-list">${renderColumn(actualOther, true)}</div>
       </div>
     </div>
@@ -2293,11 +2693,39 @@ function openPickModal(part, side) {
     return sd && sd[part] !== undefined;
   });
   const body = document.getElementById("pickBody");
+  const build = currentBuild();
+  const key = slotKey(side, part);
+  const curPid = build.slots[key];
+  const curPeriod = curPid ? state.periods.find(p => p.id === curPid) : null;
+  let html = "";
+
+  // 若该格已有装备：在顶部显示当前装备的该部位属性明细
+  if (curPeriod) {
+    const curSd = side === "left" ? curPeriod.left : curPeriod.right;
+    const curAttrs = (curSd[part] || []).map(a => {
+      const label = a.attrId ? attrLabel(a.attrId) : (a.raw || "");
+      const v = a.value !== null ? ` ${a.value > 0 ? "+" : ""}${a.value}%` : "";
+      return `${label}${v}`;
+    }).join(" · ");
+    const curName = curPeriod.shortName && curPeriod.shortName !== curPeriod.name
+      ? `${escapeHtml(curPeriod.name)} <span class="pick-short">(${escapeHtml(curPeriod.shortName)})</span>`
+      : escapeHtml(curPeriod.name);
+    html += `<div class="pick-current">
+      <div style="font-size:12px;color:var(--accent);margin-bottom:4px;">当前装备</div>
+      <div class="pick-item-row" style="display:flex;align-items:center;gap:8px;">
+        <div class="pcolor" style="background:${curPeriod.color};width:8px;height:8px;border-radius:2px;"></div>
+        <div class="pname">${curName}</div>
+        <div class="pattrs" style="margin-left:auto;">${curAttrs || "无属性"}</div>
+      </div>
+    </div>
+    <hr style="border:none;border-top:1px dashed var(--border);margin:10px 0;">`;
+  }
+
   if (list.length === 0) {
-    body.innerHTML = `<p style="color:var(--text-dim);text-align:center;padding:20px;">没有含${sideLabel}「${part}」的套装</p>`;
+    html += `<p style="color:var(--text-dim);text-align:center;padding:20px;">没有含${sideLabel}「${part}」的套装</p>`;
   } else {
     // 每行一个：色块 + 全称(简称) + 该套在该部位的属性数值明细
-    body.innerHTML = `<div class="pick-list pick-list-vertical">` +
+    html += `<div class="pick-list pick-list-vertical">` +
       list.map(p => {
         const sd = side === "left" ? p.left : p.right;
         const attrs = (sd[part] || []).map(a => {
@@ -2309,7 +2737,7 @@ function openPickModal(part, side) {
           ? `${escapeHtml(p.name)} <span class="pick-short">(${escapeHtml(p.shortName)})</span>`
           : escapeHtml(p.name);
         return `
-          <div class="pick-item pick-item-row" onclick="pickPeriod('${p.id}')">
+          <div class="pick-item pick-item-row${p.id === curPid ? " pick-current-selected" : ""}" onclick="pickPeriod('${p.id}')">
             <div class="pcolor" style="background:${p.color}"></div>
             <div class="pick-text">
               <div class="pname">${nameDisplay}</div>
@@ -2318,9 +2746,8 @@ function openPickModal(part, side) {
           </div>`;
       }).join("") + `</div>`;
   }
-  const build = currentBuild();
-  const key = slotKey(side, part);
-  document.getElementById("pickClearBtn").style.display = build.slots[key] ? "" : "none";
+  body.innerHTML = html;
+  document.getElementById("pickClearBtn").style.display = curPid ? "" : "none";
   openModal("pickMask");
 }
 
@@ -2515,7 +2942,7 @@ function toggleActivate(pid) {
 }
 
 /* ============================================================
-   十五、装备库弹窗（只读查看，数据来自 data.json）
+   十五、装备库弹窗（只读，数据来自 data.json）
 ============================================================ */
 
 function openLibraryModal() {
@@ -2552,19 +2979,77 @@ function openLibraryModal() {
 }
 
 /* ============================================================
-   十六、设置弹窗
+   十八、设置弹窗
 ============================================================ */
 
 function openSettingsModal() {
   const body = document.getElementById("settingsBody");
   const s = state.settings;
   body.innerHTML = `
-    <div class="entry-section">
-      <label class="toggle-switch">
-        <input type="checkbox" id="setAbbrMode" ${s.abbrMode ? "checked" : ""} onchange="syncSettingsFromInputs(); renderAll();">
-        <span class="toggle-slider"></span>
-        <span class="toggle-label">属性名称缩写</span>
-      </label>
+    <div class="entry-two-col">
+      <div class="entry-col">
+        <div class="entry-section">
+          <h4>OCR 识别模式</h4>
+          <div class="entry-row">
+            <select class="input" id="setOcrMode" onchange="syncSettingsFromInputs()">
+              <option value="local" ${s.ocrMode === "local" ? "selected" : ""}>本地 Tesseract.js</option>
+              <option value="api" ${s.ocrMode === "api" ? "selected" : ""}>大模型 API（需填 API Key）</option>
+            </select>
+          </div>
+        </div>
+        <div class="entry-section">
+          <h4>属性解析模式</h4>
+          <div class="entry-row">
+            <select class="input" id="setParseMode" onchange="syncSettingsFromInputs()">
+              <option value="local" ${s.parseMode === "local" ? "selected" : ""}>本地正则解析</option>
+              <option value="api" ${s.parseMode === "api" ? "selected" : ""}>大模型解析（需填 API Key）</option>
+            </select>
+          </div>
+        </div>
+        <div class="entry-section">
+          <h4>语言包（本地 OCR）</h4>
+          <select class="input" id="setLang" onchange="syncSettingsFromInputs()">
+            <option value="chi_sim" ${s.lang === "chi_sim" ? "selected" : ""}>简体中文</option>
+            <option value="chi_sim+eng" ${s.lang === "chi_sim+eng" ? "selected" : ""}>中文 + 英文</option>
+          </select>
+        </div>
+        <div class="entry-section">
+          <label class="toggle-switch">
+            <input type="checkbox" id="setAbbrMode" ${s.abbrMode ? "checked" : ""} onchange="syncSettingsFromInputs(); renderAll();">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">属性名称缩写</span>
+          </label>
+        </div>
+        <div class="entry-section">
+          <div class="entry-row" style="margin-top:8px;">
+            <button class="btn" onclick="syncSettingsFromInputs(); testApiProxy();">测试 API 连通</button>
+            <span id="testApiResult" style="font-size:12px;color:var(--text-faint);"></span>
+          </div>
+        </div>
+      </div>
+      <div class="entry-col">
+        <div class="entry-section">
+          <h4>API 代理 URL</h4>
+          <input class="input" id="setApiUrl" value="${escapeHtml(s.apiProxyUrl)}" style="width:100%;" onblur="syncSettingsFromInputs()">
+        </div>
+        <div class="entry-section">
+          <h4>API Key（火山方舟）</h4>
+          <input class="input" id="setApiKey" type="password" value="${escapeHtml(s.apiKey)}" style="width:100%;" placeholder="ark-xxxxxxx" onblur="syncSettingsFromInputs()">
+          <p style="font-size:11px;color:var(--text-faint);margin-top:4px;line-height:1.6;">
+            · 到 <a href="https://console.volcengine.com/ark/region:cn-beijing/apiKey" target="_blank" style="color:var(--accent);">火山方舟控制台</a> 创建 API Key<br>
+            · 需先在「开通管理」里开通视觉理解模型<br>
+            · Key 只存在你本机，不会上传、不会跟着 exe 带走
+          </p>
+        </div>
+        <div class="entry-section">
+          <h4>大模型 API 地址</h4>
+          <input class="input" id="setApiBase" value="${escapeHtml(s.apiUrl)}" style="width:100%;" onblur="syncSettingsFromInputs()">
+        </div>
+        <div class="entry-section">
+          <h4>模型名</h4>
+          <input class="input" id="setModel" value="${escapeHtml(s.model)}" style="width:100%;" onblur="syncSettingsFromInputs()">
+        </div>
+      </div>
     </div>
   `;
   openModal("settingsMask");
@@ -2572,7 +3057,15 @@ function openSettingsModal() {
 
 /* 把弹窗里的输入同步到 state.settings 并保存（不关闭弹窗，供失焦/onchange 实时调用） */
 function syncSettingsFromInputs() {
-  state.settings.abbrMode = document.getElementById("setAbbrMode").checked;
+  const s = state.settings;
+  s.ocrMode = document.getElementById("setOcrMode").value;
+  s.parseMode = document.getElementById("setParseMode").value;
+  s.apiProxyUrl = document.getElementById("setApiUrl").value.trim() || "http://127.0.0.1:8787/ocr";
+  s.apiKey = document.getElementById("setApiKey").value.trim();
+  s.apiUrl = document.getElementById("setApiBase").value.trim() || "https://api.siliconflow.cn/v1/chat/completions";
+  s.model = document.getElementById("setModel").value.trim() || "Qwen/Qwen3-VL-32B-Instruct";
+  s.lang = document.getElementById("setLang").value;
+  s.abbrMode = document.getElementById("setAbbrMode").checked;
   saveState();
 }
 
@@ -2583,8 +3076,55 @@ function saveSettings() {
   renderAll();
 }
 
+/* 测试 API 连通：先保存设置，再请求 /test 端点 */
+async function testApiProxy() {
+  // 先保存当前所有设置到 state
+  const apiProxyUrl = document.getElementById("setApiUrl").value.trim() || "http://127.0.0.1:8787/ocr";
+  const apiKey = document.getElementById("setApiKey").value.trim();
+  const apiUrl = document.getElementById("setApiBase").value.trim() || "https://api.siliconflow.cn/v1/chat/completions";
+  const model = document.getElementById("setModel").value.trim() || "Qwen/Qwen3-VL-32B-Instruct";
+  state.settings.apiProxyUrl = apiProxyUrl;
+  state.settings.apiKey = apiKey;
+  state.settings.apiUrl = apiUrl;
+  state.settings.model = model;
+  saveState();
+  const result = document.getElementById("testApiResult");
+  result.style.color = "var(--text-faint)";
+  result.textContent = "测试中...";
+  if (!apiKey) {
+    result.style.color = "#ff6b6b";
+    result.textContent = "× 未填 API Key";
+    return;
+  }
+  try {
+    // 把 /ocr 替换成 /test，把 apiKey 等加到 query string
+    const testBase = apiProxyUrl.replace(/\/ocr\/?$/, "/test").replace(/\/$/, "/test");
+    const qs = new URLSearchParams({ apiKey, apiUrl, model }).toString();
+    const testUrl = testBase + (testBase.includes("?") ? "&" : "?") + qs;
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 30000);
+    const resp = await fetch(testUrl, { signal: controller.signal });
+    clearTimeout(tid);
+    const data = await resp.json();
+    if (data.ok) {
+      result.style.color = "var(--accent)";
+      result.textContent = "✓ API Key 有效，模型：" + (data.model || "");
+    } else {
+      result.style.color = "#ff6b6b";
+      result.textContent = "× " + (data.reason || "失败");
+    }
+  } catch (e) {
+    result.style.color = "#ff6b6b";
+    if (e.name === "AbortError") {
+      result.textContent = "× 请求超时（30秒），可能 exe 未启动或网络问题";
+    } else {
+      result.textContent = "× " + e.message + "（确认 exe 已运行）";
+    }
+  }
+}
+
 /* ============================================================
-   十八、弹窗通用控制
+   十九、弹窗通用控制
 ============================================================ */
 
 function openModal(id) {
@@ -2596,18 +3136,90 @@ function closeModal(id) {
 // 点击遮罩不关闭（只有关闭按钮才关）—— 不绑定 mask click 事件
 
 /* ============================================================
-   十九、初始化
+   二十、备份与还原
 ============================================================ */
 
-// 初始化：先异步等数据加载完再渲染
+function backupData() {
+  // 直接用 state 当前数据导出（不依赖 localStorage）
+  const data = JSON.stringify({
+    periods: state.periods,
+    builds: state.builds,
+    currentBuildId: state.currentBuildId,
+    settings: state.settings,
+    panelValues: state.panelValues,
+    includePanel: state.includePanel
+  }, null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `elight-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("已备份", "success");
+}
+
+function restoreData() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.onchange = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = async ev => {
+      // 二次确认改成内部弹窗
+      openConfirm("还原会覆盖当前所有数据，确认继续？", async () => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          state.periods = data.periods || [];
+          state.builds = data.builds || [];
+          state.currentBuildId = data.currentBuildId || (state.builds[0] && state.builds[0].id);
+          state.settings = Object.assign(state.settings, data.settings || {});
+          state.panelValues = data.panelValues || {};
+          state.includePanel = data.includePanel || false;
+          saveState();   // 自动同步到后端 data.json + localStorage
+          renderAll();
+          toast("已还原", "success");
+        } catch (err) {
+          toast("还原失败：" + err.message, "error");
+        }
+      });
+    };
+    r.readAsText(f);
+  };
+  input.click();
+}
+
+/* ============================================================
+   二十一、初始化
+============================================================ */
+
+// 初始化：先异步等数据加载完再渲染（数据从后端 /data 读，避免 localStorage 在 pywebview 中丢失）
 (async () => {
   await loadState();
   renderAll();
 })();
 
-// 窗口关闭前保存一次数据（纯 localStorage，无需 XHR）
+// 窗口关闭前强制同步保存一次数据（pywebview 的 window.beforeunload 事件）
+// 用同步 XMLHttpRequest（不能用 fetch，因为 fetch 是异步的，unload 时会被中断）
 window.addEventListener("beforeunload", () => {
-  saveState();
+  try {
+    const payload = JSON.stringify({
+      periods: state.periods,
+      builds: state.builds,
+      currentBuildId: state.currentBuildId,
+      settings: state.settings,
+      panelValues: state.panelValues,
+      includePanel: state.includePanel
+    });
+    // 同步 XHR：阻塞窗口关闭，等保存完成
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/data", false);  // false = 同步
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(payload);
+  } catch (e) {
+    console.warn("关闭前保存失败：", e);
+  }
 });
 
 </script>
