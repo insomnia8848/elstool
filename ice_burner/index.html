@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!-- ============================================================
    冰装模拟器
-   单文件纯前端版（双击即用）
+   单文件纯前端版（部署到静态托管即可使用）
    - 暗色玻璃拟态 UI
-   - localStorage 持久化
-   - Tesseract.js 本地 OCR + 大模型 API 模式
+   - localStorage 持久化用户数据
+   - 冰装库从 data.json 读取
    - 详细中文注释，方便记事本编辑
 ============================================================ -->
 <html lang="zh-CN">
@@ -12,9 +12,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>冰装模拟器</title>
-
-<!-- Tesseract.js 本地 OCR 库（仅 OCR 时使用，不影响其他功能） -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
 
 <style>
 /* ============================================================
@@ -868,43 +865,6 @@ textarea.input {
   width: 100%;
 }
 
-/* OCR 区域 */
-.ocr-box {
-  border: 2px dashed var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.15s;
-  background: rgba(0,0,0,0.025);
-}
-.ocr-box:hover, .ocr-box.dragover {
-  border-color: var(--accent);
-  background: rgba(108,142,255,0.08);
-}
-.ocr-box .ohint { color: var(--text-dim); font-size: 13px; }
-.ocr-preview {
-  max-width: 200px;
-  max-height: 200px;
-  margin: 8px auto;
-  border-radius: 6px;
-  display: none;
-}
-.ocr-preview.show { display: block; }
-.ocr-raw {
-  margin-top: 8px;
-  font-size: 11px;
-  color: var(--text-faint);
-  background: rgba(0,0,0,0.3);
-  padding: 8px;
-  border-radius: 6px;
-  max-height: 120px;
-  overflow: auto;
-  white-space: pre-wrap;
-  display: none;
-}
-.ocr-raw.show { display: block; }
-
 /* ============================================================
    七、装备库弹窗
 ============================================================ */
@@ -1631,13 +1591,6 @@ let state = {
   builds: [],       // 所有搭配方案
   currentBuildId: null,
   settings: {
-    ocrMode: "local",        // local | api
-    parseMode: "local",      // 属性解析模式：local=本地正则 | api=大模型
-    apiProxyUrl: "http://127.0.0.1:8787/ocr",
-    apiKey: "",              // 用户的 API Key（本地 localStorage，发给别人不会带）
-    apiUrl: "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
-    model: "doubao-1-5-vision-pro-32k-250115",
-    lang: "chi_sim",         // chi_sim | chi_sim+eng
     abbrMode: false          // 属性名称缩写开关：true=所有属性显示用缩写
   },
   panelValues: {},    // 用户手动输入的面板数值（attrId -> 数值），均为"渐减后/上限后"的实际值
@@ -2986,70 +2939,12 @@ function openSettingsModal() {
   const body = document.getElementById("settingsBody");
   const s = state.settings;
   body.innerHTML = `
-    <div class="entry-two-col">
-      <div class="entry-col">
-        <div class="entry-section">
-          <h4>OCR 识别模式</h4>
-          <div class="entry-row">
-            <select class="input" id="setOcrMode" onchange="syncSettingsFromInputs()">
-              <option value="local" ${s.ocrMode === "local" ? "selected" : ""}>本地 Tesseract.js</option>
-              <option value="api" ${s.ocrMode === "api" ? "selected" : ""}>大模型 API（需填 API Key）</option>
-            </select>
-          </div>
-        </div>
-        <div class="entry-section">
-          <h4>属性解析模式</h4>
-          <div class="entry-row">
-            <select class="input" id="setParseMode" onchange="syncSettingsFromInputs()">
-              <option value="local" ${s.parseMode === "local" ? "selected" : ""}>本地正则解析</option>
-              <option value="api" ${s.parseMode === "api" ? "selected" : ""}>大模型解析（需填 API Key）</option>
-            </select>
-          </div>
-        </div>
-        <div class="entry-section">
-          <h4>语言包（本地 OCR）</h4>
-          <select class="input" id="setLang" onchange="syncSettingsFromInputs()">
-            <option value="chi_sim" ${s.lang === "chi_sim" ? "selected" : ""}>简体中文</option>
-            <option value="chi_sim+eng" ${s.lang === "chi_sim+eng" ? "selected" : ""}>中文 + 英文</option>
-          </select>
-        </div>
-        <div class="entry-section">
-          <label class="toggle-switch">
-            <input type="checkbox" id="setAbbrMode" ${s.abbrMode ? "checked" : ""} onchange="syncSettingsFromInputs(); renderAll();">
-            <span class="toggle-slider"></span>
-            <span class="toggle-label">属性名称缩写</span>
-          </label>
-        </div>
-        <div class="entry-section">
-          <div class="entry-row" style="margin-top:8px;">
-            <button class="btn" onclick="syncSettingsFromInputs(); testApiProxy();">测试 API 连通</button>
-            <span id="testApiResult" style="font-size:12px;color:var(--text-faint);"></span>
-          </div>
-        </div>
-      </div>
-      <div class="entry-col">
-        <div class="entry-section">
-          <h4>API 代理 URL</h4>
-          <input class="input" id="setApiUrl" value="${escapeHtml(s.apiProxyUrl)}" style="width:100%;" onblur="syncSettingsFromInputs()">
-        </div>
-        <div class="entry-section">
-          <h4>API Key（火山方舟）</h4>
-          <input class="input" id="setApiKey" type="password" value="${escapeHtml(s.apiKey)}" style="width:100%;" placeholder="ark-xxxxxxx" onblur="syncSettingsFromInputs()">
-          <p style="font-size:11px;color:var(--text-faint);margin-top:4px;line-height:1.6;">
-            · 到 <a href="https://console.volcengine.com/ark/region:cn-beijing/apiKey" target="_blank" style="color:var(--accent);">火山方舟控制台</a> 创建 API Key<br>
-            · 需先在「开通管理」里开通视觉理解模型<br>
-            · Key 只存在你本机，不会上传、不会跟着 exe 带走
-          </p>
-        </div>
-        <div class="entry-section">
-          <h4>大模型 API 地址</h4>
-          <input class="input" id="setApiBase" value="${escapeHtml(s.apiUrl)}" style="width:100%;" onblur="syncSettingsFromInputs()">
-        </div>
-        <div class="entry-section">
-          <h4>模型名</h4>
-          <input class="input" id="setModel" value="${escapeHtml(s.model)}" style="width:100%;" onblur="syncSettingsFromInputs()">
-        </div>
-      </div>
+    <div class="entry-section">
+      <label class="toggle-switch">
+        <input type="checkbox" id="setAbbrMode" ${s.abbrMode ? "checked" : ""} onchange="syncSettingsFromInputs(); renderAll();">
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">属性名称缩写</span>
+      </label>
     </div>
   `;
   openModal("settingsMask");
@@ -3057,15 +2952,7 @@ function openSettingsModal() {
 
 /* 把弹窗里的输入同步到 state.settings 并保存（不关闭弹窗，供失焦/onchange 实时调用） */
 function syncSettingsFromInputs() {
-  const s = state.settings;
-  s.ocrMode = document.getElementById("setOcrMode").value;
-  s.parseMode = document.getElementById("setParseMode").value;
-  s.apiProxyUrl = document.getElementById("setApiUrl").value.trim() || "http://127.0.0.1:8787/ocr";
-  s.apiKey = document.getElementById("setApiKey").value.trim();
-  s.apiUrl = document.getElementById("setApiBase").value.trim() || "https://api.siliconflow.cn/v1/chat/completions";
-  s.model = document.getElementById("setModel").value.trim() || "Qwen/Qwen3-VL-32B-Instruct";
-  s.lang = document.getElementById("setLang").value;
-  s.abbrMode = document.getElementById("setAbbrMode").checked;
+  state.settings.abbrMode = document.getElementById("setAbbrMode").checked;
   saveState();
 }
 
@@ -3074,53 +2961,6 @@ function saveSettings() {
   closeModal("settingsMask");
   toast("设置已保存", "success");
   renderAll();
-}
-
-/* 测试 API 连通：先保存设置，再请求 /test 端点 */
-async function testApiProxy() {
-  // 先保存当前所有设置到 state
-  const apiProxyUrl = document.getElementById("setApiUrl").value.trim() || "http://127.0.0.1:8787/ocr";
-  const apiKey = document.getElementById("setApiKey").value.trim();
-  const apiUrl = document.getElementById("setApiBase").value.trim() || "https://api.siliconflow.cn/v1/chat/completions";
-  const model = document.getElementById("setModel").value.trim() || "Qwen/Qwen3-VL-32B-Instruct";
-  state.settings.apiProxyUrl = apiProxyUrl;
-  state.settings.apiKey = apiKey;
-  state.settings.apiUrl = apiUrl;
-  state.settings.model = model;
-  saveState();
-  const result = document.getElementById("testApiResult");
-  result.style.color = "var(--text-faint)";
-  result.textContent = "测试中...";
-  if (!apiKey) {
-    result.style.color = "#ff6b6b";
-    result.textContent = "× 未填 API Key";
-    return;
-  }
-  try {
-    // 把 /ocr 替换成 /test，把 apiKey 等加到 query string
-    const testBase = apiProxyUrl.replace(/\/ocr\/?$/, "/test").replace(/\/$/, "/test");
-    const qs = new URLSearchParams({ apiKey, apiUrl, model }).toString();
-    const testUrl = testBase + (testBase.includes("?") ? "&" : "?") + qs;
-    const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 30000);
-    const resp = await fetch(testUrl, { signal: controller.signal });
-    clearTimeout(tid);
-    const data = await resp.json();
-    if (data.ok) {
-      result.style.color = "var(--accent)";
-      result.textContent = "✓ API Key 有效，模型：" + (data.model || "");
-    } else {
-      result.style.color = "#ff6b6b";
-      result.textContent = "× " + (data.reason || "失败");
-    }
-  } catch (e) {
-    result.style.color = "#ff6b6b";
-    if (e.name === "AbortError") {
-      result.textContent = "× 请求超时（30秒），可能 exe 未启动或网络问题";
-    } else {
-      result.textContent = "× " + e.message + "（确认 exe 已运行）";
-    }
-  }
 }
 
 /* ============================================================
