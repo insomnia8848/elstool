@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <!-- ============================================================
    冰装模拟器
-   单文件纯前端版（部署到静态托管即可使用）
+   单文件纯前端版（双击即用）
    - 暗色玻璃拟态 UI
-   - localStorage 持久化用户数据
-   - 冰装库从 data.json 读取
+   - localStorage 持久化
    - 详细中文注释，方便记事本编辑
 ============================================================ -->
 <html lang="zh-CN">
@@ -12,6 +11,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>冰装模拟器</title>
+
 
 <style>
 /* ============================================================
@@ -865,6 +865,8 @@ textarea.input {
   width: 100%;
 }
 
+
+
 /* ============================================================
    七、装备库弹窗
 ============================================================ */
@@ -1121,6 +1123,9 @@ textarea.input {
       <h3 style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
         <span>详细属性</span>
         <span style="display:flex;align-items:center;gap:6px;">
+          <select id="mainPanelSelect" class="input" title="切换角色面板"
+                  style="height:28px;font-size:12px;padding:2px 6px;"
+                  onchange="switchMainPanel(this.value)"></select>
           <button class="btn-panel-edit" onclick="openPanelEditModal()" title="编辑当前面板数值">编辑当前面板</button>
           <label class="toggle-switch" title="叠加当前面板数值到套装总和">
             <input type="checkbox" id="toggleIncludePanel" onchange="toggleIncludePanel()">
@@ -1214,25 +1219,29 @@ textarea.input {
       <button class="modal-close" onclick="closeModal('compareMask')">×</button>
     </div>
     <div class="modal-body">
-      <!-- 顶部选另一个方案 -->
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:140px;">
+      <!-- 顶部选另一个方案 + 左右各自的角色面板 -->
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:160px;">
           <div style="font-size:11px;color:var(--text-faint);margin-bottom:4px;">当前方案</div>
-          <div id="compareCurrentName" style="font-size:13px;font-weight:600;color:var(--accent);"></div>
+          <div id="compareCurrentName" style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:6px;"></div>
+          <div style="font-size:11px;color:var(--text-faint);margin-bottom:4px;">角色面板</div>
+          <select id="cmpPanelLeft" class="input" style="width:100%;" onchange="renderCompareBody()"></select>
         </div>
-        <div style="font-size:18px;color:var(--text-faint);">vs</div>
-        <div style="flex:1;min-width:140px;">
+        <div style="font-size:18px;color:var(--text-faint);padding-top:18px;">vs</div>
+        <div style="flex:1;min-width:160px;">
           <div style="font-size:11px;color:var(--text-faint);margin-bottom:4px;">对比方案</div>
-          <select id="compareSelect" class="input" style="width:100%;" onchange="renderCompareBody()"></select>
+          <select id="compareSelect" class="input" style="width:100%;margin-bottom:6px;" onchange="renderCompareBody()"></select>
+          <div style="font-size:11px;color:var(--text-faint);margin-bottom:4px;">角色面板</div>
+          <select id="cmpPanelRight" class="input" style="width:100%;" onchange="renderCompareBody()"></select>
         </div>
       </div>
       <div style="font-size:11px;color:var(--text-faint);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
         <span>对比方案比当前方案<span style="color:#dc2626;font-weight:600;">高↑</span> 用红色、<span style="color:#16a34a;font-weight:600;">低↓</span> 用绿色</span>
         <span style="display:flex;align-items:center;gap:16px;">
-          <label class="toggle-switch" title="两侧同时叠加当前面板数值">
+          <label class="toggle-switch" title="两侧分别叠加各自选择的角色面板">
             <input type="checkbox" id="cmpIncludePanel" onchange="renderCompareBody()">
             <span class="toggle-slider"></span>
-            <span class="toggle-label" style="font-size:12px;">包含当前面板</span>
+            <span class="toggle-label" style="font-size:12px;">包含面板</span>
           </label>
           <label class="toggle-switch" title="切换显示对比值或本身数值">
             <input type="checkbox" id="cmpShowDiff" onchange="renderCompareBody()">
@@ -1317,7 +1326,16 @@ textarea.input {
       <button class="modal-close" onclick="closeModal('panelEditMask')">×</button>
     </div>
     <div class="modal-body">
-      <div id="panelEditBody" style="max-height:60vh;overflow-y:auto;"></div>
+      <!-- 角色面板方案管理行：切换/新建/重命名/删除 -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--text-dim);">角色面板</span>
+        <select id="panelEditSelect" class="input" style="flex:1;min-width:140px;height:30px;"
+                onchange="switchEditPanel(this.value)"></select>
+        <button class="btn btn-ghost" style="padding:4px 10px;" onclick="newEditPanel()" title="新建一个空白角色面板">新建</button>
+        <button class="btn btn-ghost" style="padding:4px 10px;" onclick="renameEditPanel()">重命名</button>
+        <button class="btn btn-ghost" style="padding:4px 10px;" onclick="deleteEditPanel()">删除</button>
+      </div>
+      <div id="panelEditBody" style="max-height:54vh;overflow-y:auto;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="savePanelValues(false)">保存</button>
@@ -1396,7 +1414,7 @@ textarea.input {
       <button class="modal-close" onclick="closeModal('buildInputMask')">×</button>
     </div>
     <div class="modal-body">
-      <label style="display:block;font-size:13px;color:var(--text-dim);margin-bottom:6px;">方案名称</label>
+      <label id="buildInputLabel" style="display:block;font-size:13px;color:var(--text-dim);margin-bottom:6px;">方案名称</label>
       <input class="input" id="buildInputName" style="width:100%;" placeholder="输入方案名"
              onkeydown="if(event.key==='Enter'){confirmBuildInput();}">
     </div>
@@ -1593,7 +1611,10 @@ let state = {
   settings: {
     abbrMode: false          // 属性名称缩写开关：true=所有属性显示用缩写
   },
-  panelValues: {},    // 用户手动输入的面板数值（attrId -> 数值），均为"渐减后/上限后"的实际值
+  /* 角色面板方案：可建多个（如不同角色），每个面板独立保存一套裸值
+     { id, name, values: { attrId -> 渐减后/上限后的实际值 } } */
+  panels: [{ id: "default-panel", name: "面板1", values: {} }],
+  currentPanelId: "default-panel",  // 主界面当前使用的角色面板 id
   includePanel: false // 是否把面板数值加到套装总和上
 };
 
@@ -1654,6 +1675,8 @@ function makeAttr(attrId = "", value = null, unit = "%", isDesc = false, raw = "
   return { attrId, value, unit, isDesc, raw };
 }
 
+/* 创建空套装结构 */
+
 /* ============================================================
    十、持久化与加载
 ============================================================ */
@@ -1664,7 +1687,8 @@ function saveState() {
     builds: state.builds,
     currentBuildId: state.currentBuildId,
     settings: state.settings,
-    panelValues: state.panelValues,
+    panels: state.panels,
+    currentPanelId: state.currentPanelId,
     includePanel: state.includePanel
   });
   try { localStorage.setItem(LS_KEY, payload); } catch (e) {
@@ -1681,11 +1705,10 @@ async function saveStateSync() {
 async function loadState() {
   /* —— 第一步：从 data.json 加载装备库（periods），只读 —— */
   /* 部署到静态托管后，fetch 可正常读取同目录下的 data.json */
-  let fileData = null;
   try {
     const resp = await fetch('data.json');
     if (resp.ok) {
-      fileData = await resp.json();
+      const fileData = await resp.json();
       if (fileData.periods && Array.isArray(fileData.periods)) {
         state.periods = fileData.periods;
         state.periods.forEach(p => {
@@ -1720,7 +1743,7 @@ async function loadState() {
     state.builds = data.builds || [];
     state.currentBuildId = data.currentBuildId || (state.builds[0] && state.builds[0].id);
     state.settings = Object.assign(state.settings, data.settings || {});
-    state.panelValues = data.panelValues || {};
+    migratePanels(data);   // 角色面板：新格式 panels，旧格式 panelValues 自动迁移
     state.includePanel = data.includePanel || false;
     // 兼容：builds 没有 activatedSets 字段
     state.builds.forEach(b => { if (!b.activatedSets) b.activatedSets = []; });
@@ -1746,6 +1769,7 @@ async function loadState() {
     }
   } catch (e) {
     toast("数据损坏，重置为空", "error");
+    state.periods = [];
     state.builds = [{ id: uid(), name: "方案1", createdAt: Date.now(), slots: {}, activatedSets: [], magicStones: {} }];
     state.currentBuildId = state.builds[0].id;
   }
@@ -1754,6 +1778,52 @@ async function loadState() {
 /* 获取当前搭配方案 */
 function currentBuild() {
   return state.builds.find(b => b.id === state.currentBuildId) || state.builds[0];
+}
+
+/* ============================================================
+   角色面板方案（多面板）
+============================================================ */
+
+/* 旧数据迁移：旧版只有单个 state.panelValues，新版为 panels 数组
+   - 新数据有 panels → 直接用（并校验 currentPanelId 有效）
+   - 旧数据无 panels → 用 panelValues 建一个"面板1" */
+function migratePanels(data) {
+  if (Array.isArray(data.panels) && data.panels.length > 0) {
+    state.panels = data.panels.map(p => ({
+      id: p.id || uid(),
+      name: p.name || "面板",
+      values: p.values || {}
+    }));
+    const exists = state.panels.some(p => p.id === data.currentPanelId);
+    state.currentPanelId = exists ? data.currentPanelId : state.panels[0].id;
+  } else {
+    const p = { id: uid(), name: "面板1", values: data.panelValues || {} };
+    state.panels = [p];
+    state.currentPanelId = p.id;
+  }
+}
+
+/* 按 id 取面板对象 */
+function panelById(id) {
+  return state.panels.find(p => p.id === id) || null;
+}
+
+/* 主界面当前面板对象 */
+function currentPanel() {
+  return panelById(state.currentPanelId) || state.panels[0];
+}
+
+/* 按 id 取面板数值对象（找不到返回空对象，保证调用安全） */
+function panelValuesById(id) {
+  const p = panelById(id);
+  return p ? p.values : {};
+}
+
+/* 新建面板：返回新面板对象（values 为空） */
+function createPanel(name) {
+  const p = { id: uid(), name: name || ("面板" + (state.panels.length + 1)), values: {} };
+  state.panels.push(p);
+  return p;
 }
 
 /* ============================================================
@@ -1777,6 +1847,23 @@ function renderBuildSelect() {
     saveState();
     renderAll();
   };
+}
+
+/* 渲染主界面的角色面板下拉（详细属性标题旁） */
+function renderMainPanelSelect() {
+  const sel = document.getElementById("mainPanelSelect");
+  if (!sel) return;
+  sel.innerHTML = state.panels
+    .map(p => `<option value="${p.id}"${p.id === state.currentPanelId ? " selected" : ""}>${escapeHtml(p.name)}</option>`)
+    .join("");
+}
+
+/* 主界面切换当前角色面板 */
+function switchMainPanel(id) {
+  if (!panelById(id)) return;
+  state.currentPanelId = id;
+  saveState();
+  renderAttrPanel();
 }
 
 /* 渲染左列格子 */
@@ -1971,10 +2058,13 @@ function renderAttrPanel() {
       const setSum = sums[a.id] || 0;
       // 2. 面板数值叠加（includePanel 开时）
       let totalRaw = setSum;
-      if (state.includePanel && state.panelValues[a.id] !== undefined) {
-        // 面板输入的是"渐减后/实际值"，反推成未渐减值才能和套装未渐减值相加
-        const panelRaw = reverseDiminish(a.id, Number(state.panelValues[a.id]));
-        totalRaw = setSum + panelRaw;
+      if (state.includePanel) {
+        // 用主界面当前选择的角色面板；面板输入的是"渐减后/实际值"，反推成未渐减值才能和套装未渐减值相加
+        const pv = currentPanel().values;
+        if (pv[a.id] !== undefined) {
+          const panelRaw = reverseDiminish(a.id, Number(pv[a.id]));
+          totalRaw = setSum + panelRaw;
+        }
       }
       // 3. 渐减（暴击/极大化分段计算）
       let actual = diminish(a.id, totalRaw);
@@ -2009,12 +2099,33 @@ function escapeHtml(s) {
 }
 
 /* ============================================================
-   面板数值（手动输入的属性面板）
+   面板数值（手动输入的属性面板，支持多个角色面板方案）
 ============================================================ */
 
-/* 打开面板编辑弹窗：列出全部 16 种属性，可输入数值 */
+/* 面板编辑弹窗当前正在编辑的面板 id（弹窗内可切换，未保存不影响数据） */
+let editingPanelId = null;
+
+/* 打开面板编辑弹窗：默认编辑主界面当前选择的面板 */
 function openPanelEditModal() {
+  editingPanelId = state.currentPanelId;
+  renderPanelEditSelect();
+  renderPanelEditBody();
+  openModal("panelEditMask");
+}
+
+/* 渲染弹窗顶部的面板下拉 */
+function renderPanelEditSelect() {
+  const sel = document.getElementById("panelEditSelect");
+  if (!sel) return;
+  sel.innerHTML = state.panels
+    .map(p => `<option value="${p.id}"${p.id === editingPanelId ? " selected" : ""}>${escapeHtml(p.name)}</option>`)
+    .join("");
+}
+
+/* 渲染属性输入区（16种属性，值取自正在编辑的面板；未保存的输入随切换丢弃） */
+function renderPanelEditBody() {
   const body = document.getElementById("panelEditBody");
+  const vals = (panelById(editingPanelId) || {}).values || {};
   let html = "";
   ATTR_CATEGORIES.forEach(cat => {
     const attrs = ATTR_DICT.filter(a => a.category === cat.id);
@@ -2022,7 +2133,7 @@ function openPanelEditModal() {
     html += `<div class="attr-cat-header">${escapeHtml(cat.label)}</div>`;
     html += `<div class="panel-edit-grid">`;
     attrs.forEach(a => {
-      const val = state.panelValues[a.id];
+      const val = vals[a.id];
       html += `<div class="panel-edit-item${a.fullRow ? ' attr-full-row' : ''}">
         <span class="a-name">${attrLabel(a.id)}</span>
         <input class="input" type="number" min="0" step="0.1"
@@ -2036,7 +2147,61 @@ function openPanelEditModal() {
     html += `</div>`;
   });
   body.innerHTML = html;
-  openModal("panelEditMask");
+}
+
+/* 弹窗内切换正在编辑的面板 */
+function switchEditPanel(id) {
+  if (!panelById(id)) return;
+  editingPanelId = id;
+  renderPanelEditBody();
+}
+
+/* 弹窗内新建面板：命名后立即创建（空白数值），并切换到它 */
+function newEditPanel() {
+  openTextPrompt("新建角色面板", "面板名称", "面板" + (state.panels.length + 1), name => {
+    const p = createPanel(name);
+    editingPanelId = p.id;
+    saveState();
+    renderPanelEditSelect();
+    renderPanelEditBody();
+    renderMainPanelSelect();
+    toast("已新建面板：" + name, "success");
+  });
+}
+
+/* 弹窗内重命名当前编辑的面板 */
+function renameEditPanel() {
+  const p = panelById(editingPanelId);
+  if (!p) return;
+  openTextPrompt("重命名角色面板", "面板名称", p.name, name => {
+    p.name = name;
+    saveState();
+    renderPanelEditSelect();
+    renderMainPanelSelect();
+    toast("已重命名", "success");
+  });
+}
+
+/* 弹窗内删除当前编辑的面板（至少保留1个） */
+function deleteEditPanel() {
+  if (state.panels.length <= 1) {
+    toast("至少保留一个角色面板", "error");
+    return;
+  }
+  const p = panelById(editingPanelId);
+  if (!p) return;
+  openConfirm("删除面板", `确认删除角色面板 <span style="color:#dc2626;font-weight:700;">${escapeHtml(p.name)}</span> ？`, () => {
+    state.panels = state.panels.filter(x => x.id !== p.id);
+    // 若删的是主界面当前面板，主界面切到第一个
+    if (state.currentPanelId === p.id) state.currentPanelId = state.panels[0].id;
+    editingPanelId = state.panels[0].id;
+    saveState();
+    renderPanelEditSelect();
+    renderPanelEditBody();
+    renderMainPanelSelect();
+    renderAttrPanel();
+    toast("已删除面板：" + p.name, "success");
+  });
 }
 
 /* 保存面板数值
@@ -2045,6 +2210,8 @@ function openPanelEditModal() {
                      弹出"确认以正装面板保存？" */
 function savePanelValues(withEquip) {
   const build = currentBuild();
+  const target = panelById(editingPanelId);
+  if (!target) { toast("面板不存在", "error"); return; }
   const msg = withEquip
     ? `确认以<span style="color:#dc2626;font-weight:700;">正装面板</span>保存？<br><span style="font-size:12px;color:var(--text-dim);">请确认当前输入数值为穿着当前选择方案冰装的面板数值</span>`
     : `确认以<span style="color:#dc2626;font-weight:700;">裸装数值</span>保存？<br><span style="font-size:12px;color:var(--text-dim);">请确认当前输入数值为脱去所有冰装后的面板数值</span>`;
@@ -2069,25 +2236,25 @@ function savePanelValues(withEquip) {
         inputVals[id] = naked;
       });
     }
-    // 写入 state.panelValues（始终保存裸值）
+    // 写入目标面板的 values（始终保存裸值）
+    target.values = {};
     Object.keys(inputVals).forEach(id => {
-      if (inputVals[id] === null) {
-        delete state.panelValues[id];
-      } else {
-        state.panelValues[id] = inputVals[id];
-      }
+      if (inputVals[id] !== null) target.values[id] = inputVals[id];
     });
+    // 保存后同步主界面（主界面当前面板不变，如需切换用主界面下拉）
     saveState();
     closeModal("panelEditMask");
+    renderMainPanelSelect();
     renderAttrPanel();
     toast(withEquip ? "面板数值已保存（已扣除冰装属性）" : "面板数值已保存", "success");
   });
 }
 
-/* 打开攻击力查询方式弹窗：预填当前面板的物攻/魔攻值 */
+/* 打开攻击力查询方式弹窗：预填当前正在编辑面板的物攻/魔攻值 */
 function openAttackQueryModal() {
-  document.getElementById("atkQueryPhys").value = state.panelValues.phys_atk || "";
-  document.getElementById("atkQueryMag").value  = state.panelValues.mag_atk  || "";
+  const vals = (panelById(editingPanelId) || {}).values || {};
+  document.getElementById("atkQueryPhys").value = vals.phys_atk || "";
+  document.getElementById("atkQueryMag").value  = vals.mag_atk  || "";
   openModal("attackQueryMask");
 }
 
@@ -2264,14 +2431,15 @@ function calcBuildSums(build) {
 }
 
 /* 计算某方案各属性的"实际显示值"（递减后 + 上限裁剪）
-   includePanel=true 时叠加当前面板数值（面板值为渐减后值，需反渐减为未渐减再相加） */
-function getBuildActual(build, includePanel) {
+   panelVals 为某个角色面板的数值对象（attrId→渐减后值）；
+   传 null/undefined 表示不叠加任何面板 */
+function getBuildActual(build, panelVals) {
   const sums = calcBuildSums(build);
   const actual = {};
   ATTR_DICT.forEach(a => {
     let raw = sums[a.id] || 0;
-    if (includePanel && state.panelValues[a.id] !== undefined) {
-      raw += reverseDiminish(a.id, Number(state.panelValues[a.id]));
+    if (panelVals && panelVals[a.id] !== undefined) {
+      raw += reverseDiminish(a.id, Number(panelVals[a.id]));
     }
     let v = diminish(a.id, raw);
     const cap = ATTR_CAP[a.id];
@@ -2293,9 +2461,10 @@ function getBuildActual(build, includePanel) {
    - 强烈(P2) + 超越(P3)：取最高值，乘数 1 + max/100
    - 其余属性（两极化/王伤/持续伤害/百增/全技伤）：乘数 1 + 值/100
    - 所有乘数相乘，再乘以基础值 */
-function calcBuildOutput(actual) {
+function calcBuildOutput(actual, panelVals) {
   const base = 150000;                    // 基础输出值
   let mult = 1;                           // 总乘数，各属性相乘
+  panelVals = panelVals || {};
   // 1) 攻击力：物攻/魔攻取较高者（角色只用一种攻击类型）
   const phys = actual.phys_atk || 0;
   const mag  = actual.mag_atk  || 0;
@@ -2304,7 +2473,7 @@ function calcBuildOutput(actual) {
   //    - 无面板时：总爆伤 = 150(基础) + 装备爆伤，乘数 = 总/100
   //    - 有面板时：面板值为总爆伤(已含150%基础)，actual.crit_dmg = 装备 + 面板
   //      面板值最低 150（基础），低于150按150算；面板>=150时不再额外+150
-  const panelCrit = state.panelValues && state.panelValues.crit_dmg;
+  const panelCrit = panelVals.crit_dmg;
   let critMult;
   if (panelCrit !== undefined && panelCrit !== null) {
     const pc = Number(panelCrit);
@@ -2360,6 +2529,12 @@ function openCompareModal() {
   sel.innerHTML = state.builds
     .filter(b => b.id !== state.currentBuildId)
     .map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join("");
+  // 左右角色面板下拉：默认都选主界面当前面板
+  const panelOpts = state.panels
+    .map(p => `<option value="${p.id}"${p.id === state.currentPanelId ? " selected" : ""}>${escapeHtml(p.name)}</option>`)
+    .join("");
+  document.getElementById("cmpPanelLeft").innerHTML = panelOpts;
+  document.getElementById("cmpPanelRight").innerHTML = panelOpts;
   renderCompareBody();
   openModal("compareMask");
 }
@@ -2367,7 +2542,7 @@ function openCompareModal() {
 /* 渲染对比表：左右两列并排，左当前方案/右对比方案(带红绿)
    - cmpShowDiff=false → 右侧显示对比方案本身实际值 + 红绿箭头
    - cmpShowDiff=true  → 右侧显示差值（对比方案-当前方案，递减后绝对差）+ 红绿箭头
-   - cmpIncludePanel=true → 两侧同时叠加当前面板数值 */
+   - cmpIncludePanel=true → 两侧分别叠加各自下拉选择的角色面板 */
 function renderCompareBody() {
   const body = document.getElementById("compareBody");
   const cur = currentBuild();
@@ -2376,18 +2551,23 @@ function renderCompareBody() {
   if (!cur || !other) { body.innerHTML = ""; return; }
   const showDiff = document.getElementById("cmpShowDiff").checked;
   const incPanel = document.getElementById("cmpIncludePanel").checked;
+  // 左右各自选择的角色面板（未开"包含面板"时不叠加）
+  const leftVals  = incPanel ? panelValuesById(document.getElementById("cmpPanelLeft").value)  : null;
+  const rightVals = incPanel ? panelValuesById(document.getElementById("cmpPanelRight").value) : null;
   const fmt = n => parseFloat(Math.round(n * 100) / 100).toString();
-  const actualCur = getBuildActual(cur, incPanel);
-  const actualOther = getBuildActual(other, incPanel);
+  const actualCur = getBuildActual(cur, leftVals);
+  const actualOther = getBuildActual(other, rightVals);
 
   /* 计算"总提升"百分比：对比方案输出 相对 当前方案输出 的变化
-     - 总提升计算始终包含当前面板（不受"包含当前面板"开关影响）
+     - 总提升计算始终包含各侧自己选择的角色面板（不受"包含面板"开关影响）
      - 不显示具体输出数值，只显示百分比提升/下降
      - 红↑ 表示对比方案输出更高，绿↓ 表示更低 */
-  const actualCurOut = getBuildActual(cur, true);
-  const actualOtherOut = getBuildActual(other, true);
-  const outCur = calcBuildOutput(actualCurOut);
-  const outOther = calcBuildOutput(actualOtherOut);
+  const leftOutVals  = panelValuesById(document.getElementById("cmpPanelLeft").value);
+  const rightOutVals = panelValuesById(document.getElementById("cmpPanelRight").value);
+  const actualCurOut = getBuildActual(cur, leftOutVals);
+  const actualOtherOut = getBuildActual(other, rightOutVals);
+  const outCur = calcBuildOutput(actualCurOut, leftOutVals);
+  const outOther = calcBuildOutput(actualOtherOut, rightOutVals);
   const gainPct = outCur > 0 ? ((outOther - outCur) / outCur) * 100 : 0;
   // 总提升显示文字与样式类
   let gainText, gainCls;
@@ -2464,6 +2644,7 @@ function renderCompareBody() {
 /* 渲染全部 */
 function renderAll() {
   renderBuildSelect();
+  renderMainPanelSelect();
   renderLeftCol();
   renderRightCol();
   renderAttrPanel();
@@ -2477,10 +2658,26 @@ function renderAll() {
 /* 搭配方案命名弹窗回调（new/rename/duplicate 三种共用） */
 let buildInputAction = null;     // "new" / "duplicate" / "rename"
 
+/* 通用单行文本输入弹窗（复用 buildInputMask）
+   title=弹窗标题, label=输入框标签, defaultValue=默认值, onOk(value)=确认回调 */
+let textPromptCb = null;
+function openTextPrompt(title, label, defaultValue, onOk) {
+  textPromptCb = onOk;
+  buildInputAction = null;
+  document.getElementById("buildInputTitle").textContent = title;
+  document.getElementById("buildInputLabel").textContent = label;
+  const input = document.getElementById("buildInputName");
+  input.value = defaultValue || "";
+  openModal("buildInputMask");
+  setTimeout(() => { input.focus(); input.select(); }, 100);
+}
+
 function openBuildInput(action) {
+  textPromptCb = null;   // 防止上次通用弹窗残留
   buildInputAction = action;
   const input = document.getElementById("buildInputName");
   const title = document.getElementById("buildInputTitle");
+  document.getElementById("buildInputLabel").textContent = "方案名称";
   const cur = currentBuild();
   if (action === "new") {
     title.textContent = "新建方案";
@@ -2499,6 +2696,14 @@ function openBuildInput(action) {
 function confirmBuildInput() {
   const name = document.getElementById("buildInputName").value.trim();
   if (!name) { toast("名称不能为空", "error"); return; }
+  // 通用文本弹窗回调优先（面板新建/重命名等）
+  if (textPromptCb) {
+    const cb = textPromptCb;
+    textPromptCb = null;
+    closeModal("buildInputMask");
+    cb(name);
+    return;
+  }
   const action = buildInputAction;
   buildInputAction = null;
   closeModal("buildInputMask");
@@ -2905,16 +3110,15 @@ function openLibraryModal() {
     openModal("libraryMask");
     return;
   }
-  // 按时间倒序
-  const list = [...state.periods].sort((a, b) => b.createdAt - a.createdAt);
-  body.innerHTML = list.map(p => {
+  // 按 state.periods 顺序显示（可拖动排序，新录入的排最后）
+  body.innerHTML = state.periods.map(p => {
     // 简化：只列出部位名，不显示属性明细
     const leftParts  = LEFT_PARTS.filter(lp => p.left[lp] && p.left[lp].length);
     const rightParts = Object.keys(p.right).filter(rp => p.right[rp] && p.right[rp].length);
     const leftCnt  = p.setLeft  ? p.setLeft.length  : 0;
     const rightCnt = p.setRight ? p.setRight.length : 0;
     return `
-      <div class="lib-item">
+      <div class="lib-item" data-pid="${p.id}">
         <div class="lib-color" style="background:${p.color}"></div>
         <div class="lib-info">
           <div class="lname">${escapeHtml(p.name)}<span style="color:var(--text-dim);font-weight:400;font-size:12px;margin-left:6px;">（${escapeHtml(p.shortName || p.name)}）</span></div>
@@ -2932,7 +3136,7 @@ function openLibraryModal() {
 }
 
 /* ============================================================
-   十八、设置弹窗
+   十六、设置弹窗
 ============================================================ */
 
 function openSettingsModal() {
@@ -2964,7 +3168,7 @@ function saveSettings() {
 }
 
 /* ============================================================
-   十九、弹窗通用控制
+   十七、弹窗通用控制
 ============================================================ */
 
 function openModal(id) {
@@ -2980,13 +3184,13 @@ function closeModal(id) {
 ============================================================ */
 
 function backupData() {
-  // 直接用 state 当前数据导出（不依赖 localStorage）
+  // 静态版：只备份用户数据（冰装库在 data.json 中，不在备份范围）
   const data = JSON.stringify({
-    periods: state.periods,
     builds: state.builds,
     currentBuildId: state.currentBuildId,
     settings: state.settings,
-    panelValues: state.panelValues,
+    panels: state.panels,
+    currentPanelId: state.currentPanelId,
     includePanel: state.includePanel
   }, null, 2);
   const blob = new Blob([data], { type: "application/json" });
@@ -3007,17 +3211,16 @@ function restoreData() {
     if (!f) return;
     const r = new FileReader();
     r.onload = async ev => {
-      // 二次确认改成内部弹窗
-      openConfirm("还原会覆盖当前所有数据，确认继续？", async () => {
+      openConfirm("还原会覆盖当前搭配方案和面板数据，确认继续？", async () => {
         try {
           const data = JSON.parse(ev.target.result);
-          state.periods = data.periods || [];
+          /* 注意：periods 来自 data.json（只读），还原不覆盖冰装库 */
           state.builds = data.builds || [];
           state.currentBuildId = data.currentBuildId || (state.builds[0] && state.builds[0].id);
           state.settings = Object.assign(state.settings, data.settings || {});
-          state.panelValues = data.panelValues || {};
+          migratePanels(data);   // 兼容旧备份文件的单面板格式
           state.includePanel = data.includePanel || false;
-          saveState();   // 自动同步到后端 data.json + localStorage
+          saveState();
           renderAll();
           toast("已还原", "success");
         } catch (err) {
@@ -3034,33 +3237,11 @@ function restoreData() {
    二十一、初始化
 ============================================================ */
 
-// 初始化：先异步等数据加载完再渲染（数据从后端 /data 读，避免 localStorage 在 pywebview 中丢失）
+// 初始化：先异步等数据加载完再渲染（冰装库从 data.json 读，用户数据从 localStorage 读）
 (async () => {
   await loadState();
   renderAll();
 })();
-
-// 窗口关闭前强制同步保存一次数据（pywebview 的 window.beforeunload 事件）
-// 用同步 XMLHttpRequest（不能用 fetch，因为 fetch 是异步的，unload 时会被中断）
-window.addEventListener("beforeunload", () => {
-  try {
-    const payload = JSON.stringify({
-      periods: state.periods,
-      builds: state.builds,
-      currentBuildId: state.currentBuildId,
-      settings: state.settings,
-      panelValues: state.panelValues,
-      includePanel: state.includePanel
-    });
-    // 同步 XHR：阻塞窗口关闭，等保存完成
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/data", false);  // false = 同步
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.send(payload);
-  } catch (e) {
-    console.warn("关闭前保存失败：", e);
-  }
-});
 
 </script>
 </body>
