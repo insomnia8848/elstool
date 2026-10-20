@@ -4,6 +4,7 @@
    单文件纯前端版（双击即用）
    - 暗色玻璃拟态 UI
    - localStorage 持久化
+   - Tesseract.js 本地 OCR + 大模型 API 模式
    - 详细中文注释，方便记事本编辑
 ============================================================ -->
 <html lang="zh-CN">
@@ -12,6 +13,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>冰装模拟器</title>
 
+<!-- Tesseract.js 本地 OCR 库（仅 OCR 时使用，不影响其他功能） -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
 
 <style>
 /* ============================================================
@@ -719,6 +722,8 @@ select.btn { padding-right: 8px; }
   z-index: 1000;
   padding: 20px;
 }
+/* 录入/编辑弹窗提到最上层（从装备库点编辑时浮在装备库之上） */
+#entryMask { z-index: 1100; }
 /* 攻击力查询弹窗：需在面板编辑弹窗之上 */
 #attackQueryMask { z-index: 1200; }
 /* 确认弹窗：需在所有弹窗之上 */
@@ -865,7 +870,128 @@ textarea.input {
   width: 100%;
 }
 
+/* 部位卡片（录入弹窗内） */
+.part-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.part-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.part-card-head .ptitle {
+  font-weight: 600;
+  font-size: 13px;
+  flex: 1;
+}
+.attr-line {
+  display: grid;
+  grid-template-columns: 1fr 64px 20px 24px;   /* 属性 | 数值 | %固定 | 删除 */
+  gap: 4px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+.attr-line select, .attr-line input {
+  height: 28px;
+  padding: 0 4px;               /* 缩小 padding 适配两列布局 */
+  background: #ffffff;          /* 亮色下拉背景 */
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+/* 下拉的 option 也用深色（浏览器支持不一，但大部分现代浏览器生效） */
+.attr-line select option {
+  background: #ffffff;
+  color: var(--text);
+}
+.attr-line select:focus, .attr-line input:focus { border-color: var(--accent); }
+/* 固定显示 % 的标签，不可编辑 */
+.attr-line .unit-fixed {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  user-select: none;
+}
+.attr-line .line-del {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #ff6b6b;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 16px;
+}
+.attr-line .line-del:hover { background: rgba(255,107,107,0.12); }
 
+/* 套装效果编辑 */
+.bonus-block {
+  background: rgba(108,142,255,0.05);
+  border: 1px solid rgba(108,142,255,0.15);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.bonus-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.bonus-head .blabel { font-size: 12px; color: var(--text-dim); }
+.bonus-head .need-input {
+  width: 50px;
+  height: 26px;
+  text-align: center;
+  background: rgba(0,0,0,0.035);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+}
+
+/* OCR 区域 */
+.ocr-box {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: rgba(0,0,0,0.025);
+}
+.ocr-box:hover, .ocr-box.dragover {
+  border-color: var(--accent);
+  background: rgba(108,142,255,0.08);
+}
+.ocr-box .ohint { color: var(--text-dim); font-size: 13px; }
+.ocr-preview {
+  max-width: 200px;
+  max-height: 200px;
+  margin: 8px auto;
+  border-radius: 6px;
+  display: none;
+}
+.ocr-preview.show { display: block; }
+.ocr-raw {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-faint);
+  background: rgba(0,0,0,0.3);
+  padding: 8px;
+  border-radius: 6px;
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+  display: none;
+}
+.ocr-raw.show { display: block; }
 
 /* ============================================================
    七、装备库弹窗
@@ -877,7 +1003,7 @@ textarea.input {
   padding: 12px;
   margin-bottom: 10px;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto auto 1fr auto;
   gap: 12px;
   align-items: start;
 }
@@ -894,6 +1020,35 @@ textarea.input {
   color: var(--text-dim);
   margin-top: 4px;
   line-height: 1.6;
+}
+.lib-actions { display: flex; flex-direction: column; gap: 6px; }
+
+/* 冰装库拖拽排序 */
+.lib-handle {
+  cursor: grab;
+  user-select: none;
+  font-size: 16px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  touch-action: none;
+  margin-top: 2px;
+}
+.lib-handle:hover { background: rgba(255,255,255,0.08); }
+/* 拖拽中的浮动克隆：黄色边框高亮 */
+.lib-drag-clone {
+  position: fixed;
+  z-index: 2000;
+  pointer-events: none;
+  opacity: 0.95;
+  border: 2px solid #facc15 !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  background: var(--panel, #23252e);
+  border-radius: var(--radius-sm);
+}
+/* 源位置虚影 */
+.lib-ghost {
+  opacity: 0.35;
+  border: 1px dashed var(--text-faint) !important;
 }
 
 /* 套装选择弹窗（点格子时） */
@@ -1085,8 +1240,9 @@ textarea.input {
 
     <span style="width:1px;height:20px;background:var(--border);margin:0 4px;"></span>
 
-    <!-- 绿框组：套装库 -->
-    <button class="btn btn-primary" onclick="openLibraryModal()">冰装库</button>
+    <!-- 绿框组：套装编辑/录入 -->
+    <button class="btn btn-primary" onclick="openLibraryModal()">冰装编辑</button>
+    <button class="btn" onclick="openEntryModal()">冰装录入</button>
     <button class="btn" onclick="clearAllSlots()">清空</button>
 
     <!-- 右侧深蓝组：设置 + 备份还原 -->
@@ -1144,13 +1300,35 @@ textarea.input {
 </div>
 
 <!-- ============================================================
+   弹窗：录入装备
+============================================================ -->
+<div class="modal-mask" id="entryMask">
+  <div class="modal xl">
+    <div class="modal-header">
+      <div class="modal-title" id="entryTitle">录入装备</div>
+      <button class="modal-close" onclick="closeModal('entryMask')">×</button>
+    </div>
+    <div class="modal-body" id="entryBody">
+      <!-- 由 JS 动态生成 -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('entryMask')">取消</button>
+      <button class="btn btn-primary" onclick="savePeriodFromEntry()">确认入库</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
    弹窗：装备库
 ============================================================ -->
 <div class="modal-mask" id="libraryMask">
   <div class="modal lg">
     <div class="modal-header">
       <div class="modal-title">冰装库</div>
-      <button class="modal-close" onclick="closeModal('libraryMask')">×</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-primary" style="font-size:12px;padding:4px 12px;" onclick="closeModal('libraryMask');openEntryModal();">冰装录入</button>
+        <button class="modal-close" onclick="closeModal('libraryMask')">×</button>
+      </div>
     </div>
     <div class="modal-body" id="libraryBody">
       <!-- 由 JS 动态生成 -->
@@ -1354,32 +1532,13 @@ textarea.input {
     </div>
     <div class="modal-body">
       <div class="atk-query-note">攻击力百分比包括：</div>
-      <ol class="atk-query-list">
-        <li>武器魔力石+变换/强化等级效果</li>
-        <li>工会喷泉（不包括工会技能）</li>
-        <li>左四装备芯片效果</li>
-        <li>左四装备炼制效果</li>
-        <li>左四装备变换效果</li>
-        <li>饰品戒指效果</li>
-        <li>冰装套装+冰装单件效果</li>
-        <li>宠物被动效果</li>
-        <li>神物进化等级效果（3%）</li>
-        <li>神物变换效果+神物精灵石效果（颜色套装效果不算）</li>
-        <li>一件套效果</li>
-        <li>收集册效果+互助效果（若有）</li>
-        <li>饰品鉴定/自带效果</li>
-      </ol>
-      <div class="atk-query-inputs">
-        <div class="atk-query-item">
-          <span class="a-name">物理攻击力</span>
-          <input class="input" type="number" min="0" step="0.1" id="atkQueryPhys" placeholder="0" style="width:100px;text-align:right;">
-          <span style="color:var(--text-faint);">%</span>
-        </div>
-        <div class="atk-query-item">
-          <span class="a-name">魔法攻击力</span>
-          <input class="input" type="number" min="0" step="0.1" id="atkQueryMag" placeholder="0" style="width:100px;text-align:right;">
-          <span style="color:var(--text-faint);">%</span>
-        </div>
+      <!-- 13条来源由 JS 渲染，每条带输入框，默认值见 ATK_QUERY_ITEMS -->
+      <ol class="atk-query-list" id="atkQueryList"></ol>
+      <!-- 实时合计：各条相加 -->
+      <div class="atk-query-item" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+        <span class="a-name" style="font-weight:700;">总攻击力</span>
+        <span id="atkQueryTotal" style="min-width:70px;text-align:right;font-weight:700;color:var(--accent);">0</span>
+        <span style="color:var(--text-faint);">%</span>
       </div>
     </div>
     <div class="modal-footer">
@@ -1609,6 +1768,13 @@ let state = {
   builds: [],       // 所有搭配方案
   currentBuildId: null,
   settings: {
+    ocrMode: "local",        // local | api
+    parseMode: "local",      // 属性解析模式：local=本地正则 | api=大模型
+    apiProxyUrl: "http://127.0.0.1:8787/ocr",
+    apiKey: "",              // 用户的 API Key（本地 localStorage，发给别人不会带）
+    apiUrl: "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+    model: "doubao-1-5-vision-pro-32k-250115",
+    lang: "chi_sim",         // chi_sim | chi_sim+eng
     abbrMode: false          // 属性名称缩写开关：true=所有属性显示用缩写
   },
   /* 角色面板方案：可建多个（如不同角色），每个面板独立保存一套裸值
@@ -1618,8 +1784,10 @@ let state = {
   includePanel: false // 是否把面板数值加到套装总和上
 };
 
-/* —— 选套装弹窗上下文 —— */
+/* —— 录入弹窗临时编辑数据 —— */
+let entryDraft = null;   // 当前正在编辑的 period 草稿
 let pickContext = null;  // { part } 当前点开的格子部位
+let editingPeriodId = null;  // 录入弹窗正在编辑的 period id
 
 /* ============================================================
    九、工具函数
@@ -1676,14 +1844,30 @@ function makeAttr(attrId = "", value = null, unit = "%", isDesc = false, raw = "
 }
 
 /* 创建空套装结构 */
+function makeEmptyPeriod(name = "新套装") {
+  const left = {};
+  LEFT_PARTS.forEach(p => left[p] = []);
+  const right = { "武器": [] };  // 默认预填一个武器
+  return {
+    id: uid(),
+    name,
+    shortName: name,           // 简称默认等于全称
+    createdAt: Date.now(),
+    color: "#3a3d4b",
+    left,
+    right,
+    setLeft:  [],
+    setRight: []
+  };
+}
 
 /* ============================================================
    十、持久化与加载
 ============================================================ */
 
 function saveState() {
-  /* periods 来自 data.json（只读），不保存到 localStorage；只保存用户数据 */
   const payload = JSON.stringify({
+    periods: state.periods,
     builds: state.builds,
     currentBuildId: state.currentBuildId,
     settings: state.settings,
@@ -1691,45 +1875,68 @@ function saveState() {
     currentPanelId: state.currentPanelId,
     includePanel: state.includePanel
   });
+  // 1. localStorage 兜底
   try { localStorage.setItem(LS_KEY, payload); } catch (e) {
     console.warn("localStorage 保存失败：", e);
   }
+  // 2. 异步 POST 到后端 /data（fire-and-forget，错误时 toast 提示）
+  fetch("/data", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload
+  }).then(resp => {
+    if (!resp.ok) toast("后端保存失败 HTTP " + resp.status, "error");
+  }).catch(e => toast("保存失败：" + e.message, "error"));
 }
 
-/* 静态版无后端，saveStateSync 直接复用 saveState */
+/* 强制同步保存：用 async/await 等待 POST 完成（关键操作如关闭窗口前调） */
 async function saveStateSync() {
-  saveState();
-  return true;
+  const payload = JSON.stringify({
+    periods: state.periods,
+    builds: state.builds,
+    currentBuildId: state.currentBuildId,
+    settings: state.settings,
+    panels: state.panels,
+    currentPanelId: state.currentPanelId,
+    includePanel: state.includePanel
+  });
+  try { localStorage.setItem(LS_KEY, payload); } catch (e) {}
+  try {
+    const resp = await fetch("/data", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload
+    });
+    return resp.ok;
+  } catch (e) {
+    return false;
+  }
 }
 
 async function loadState() {
-  /* —— 第一步：从 data.json 加载装备库（periods），只读 —— */
-  /* 部署到静态托管后，fetch 可正常读取同目录下的 data.json */
+  // 优先从后端 /data 读（exe 同目录 data.json，跨启动稳定）
+  let data = null;
   try {
-    const resp = await fetch('data.json');
+    const resp = await fetch("/data");
     if (resp.ok) {
-      const fileData = await resp.json();
-      if (fileData.periods && Array.isArray(fileData.periods)) {
-        state.periods = fileData.periods;
-        state.periods.forEach(p => {
-          if (!p.color) p.color = "#3a3d4b";
-          if (!p.shortName) p.shortName = p.name;
-        });
+      const text = await resp.text();
+      if (text && text.trim() !== "null" && text.trim() !== "") {
+        data = JSON.parse(text);
       }
     }
   } catch (e) {
-    console.warn("data.json 加载失败（本地直接打开时无法 fetch），请部署到静态托管平台或用本地服务器", e);
+    console.warn("从后端 /data 读取失败：", e);
   }
 
-  /* —— 第二步：从 localStorage 加载用户数据（搭配方案、设置、面板） —— */
-  /* data.json 只含冰装库（periods），用户数据全部存 localStorage */
-  let data = null;
-  const raw = localStorage.getItem(LS_KEY);
-  if (raw) {
-    try { data = JSON.parse(raw); } catch (_) {}
+  // 后端没数据时回退 localStorage
+  if (!data) {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      try { data = JSON.parse(raw); } catch (_) {}
+    }
   }
 
-  /* localStorage 没数据 → 首次使用，创建默认空方案 */
+  // 都没数据 → 首次使用，创建默认空方案
   if (!data) {
     const b = { id: uid(), name: "方案1", createdAt: Date.now(), slots: {}, activatedSets: [], magicStones: {} };
     state.builds = [b];
@@ -1739,12 +1946,17 @@ async function loadState() {
   }
 
   try {
-    /* 注意：periods 已从 data.json 加载，不使用 localStorage 中的旧 periods */
+    state.periods = data.periods || [];
     state.builds = data.builds || [];
     state.currentBuildId = data.currentBuildId || (state.builds[0] && state.builds[0].id);
     state.settings = Object.assign(state.settings, data.settings || {});
     migratePanels(data);   // 角色面板：新格式 panels，旧格式 panelValues 自动迁移
     state.includePanel = data.includePanel || false;
+    // 兼容：旧数据无 color 字段时补默认色；无 shortName 时用 name 兜底
+    state.periods.forEach(p => {
+      if (!p.color) p.color = "#3a3d4b";
+      if (!p.shortName) p.shortName = p.name;
+    });
     // 兼容：builds 没有 activatedSets 字段
     state.builds.forEach(b => { if (!b.activatedSets) b.activatedSets = []; });
     // 兼容：builds 没有 magicStones 字段
@@ -2250,22 +2462,58 @@ function savePanelValues(withEquip) {
   });
 }
 
-/* 打开攻击力查询方式弹窗：预填当前正在编辑面板的物攻/魔攻值 */
+/* 攻击力查询的 13 条来源及默认值（def 为空字符串表示默认留空） */
+const ATK_QUERY_ITEMS = [
+  { label: "武器魔力石+变换/强化等级效果",                        def: 31.5 },
+  { label: "工会喷泉（不包括工会技能）",                          def: 3    },
+  { label: "左四装备芯片效果",                                    def: ""   },
+  { label: "左四装备炼制效果",                                    def: 8    },
+  { label: "左四装备变换效果",                                    def: ""   },
+  { label: "饰品戒指效果",                                        def: 0.5  },
+  { label: "冰装套装+冰装单件效果",                               def: ""   },
+  { label: "宠物被动效果",                                        def: 2    },
+  { label: "神物进化等级效果（3%）",                              def: 3    },
+  { label: "神物变换效果+神物精灵石效果（颜色套装效果不算）",     def: ""   },
+  { label: "一件套效果",                                          def: ""   },
+  { label: "收集册效果+互助效果（若有）",                         def: 3.75 },
+  { label: "饰品鉴定/自带效果",                                   def: ""   }
+];
+
+/* 打开攻击力查询方式弹窗：渲染13条来源输入框 + 默认值 + 实时合计 */
 function openAttackQueryModal() {
-  const vals = (panelById(editingPanelId) || {}).values || {};
-  document.getElementById("atkQueryPhys").value = vals.phys_atk || "";
-  document.getElementById("atkQueryMag").value  = vals.mag_atk  || "";
+  const list = document.getElementById("atkQueryList");
+  list.innerHTML = ATK_QUERY_ITEMS.map((it, i) => `
+    <li class="atk-query-item" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;list-style:none;">
+      <span style="flex:1;font-size:13px;">${i + 1}：${it.label}</span>
+      <input class="input atk-src" type="number" min="0" step="0.01"
+             data-idx="${i}" value="${it.def === "" ? "" : it.def}"
+             placeholder="0" style="width:80px;text-align:right;"
+             oninput="updateAtkQueryTotal()">
+      <span style="color:var(--text-faint);">%</span>
+    </li>`).join("");
+  updateAtkQueryTotal();
   openModal("attackQueryMask");
 }
 
-/* 确认填入：把攻击力查询弹窗的数值写回面板编辑弹窗的物攻/魔攻输入框 */
+/* 实时合计：13条来源相加，显示在总攻击力栏 */
+function updateAtkQueryTotal() {
+  let sum = 0;
+  document.querySelectorAll("#atkQueryList .atk-src").forEach(inp => {
+    const v = parseFloat(inp.value);
+    if (!isNaN(v) && v > 0) sum += v;
+  });
+  // 保留两位小数显示，去除多余的 .0
+  document.getElementById("atkQueryTotal").textContent =
+    parseFloat(Math.round(sum * 100) / 100).toString();
+}
+
+/* 确认填入：把合计的总攻击力写回面板编辑弹窗的物攻/魔攻输入框 */
 function applyAttackQuery() {
-  const phys = document.getElementById("atkQueryPhys").value.trim();
-  const mag  = document.getElementById("atkQueryMag").value.trim();
+  const total = document.getElementById("atkQueryTotal").textContent;
   const physInput = document.querySelector('#panelEditBody input[data-attr-id="phys_atk"]');
   const magInput  = document.querySelector('#panelEditBody input[data-attr-id="mag_atk"]');
-  if (physInput) physInput.value = phys;
-  if (magInput)  magInput.value  = mag;
+  if (physInput) physInput.value = total;
+  if (magInput)  magInput.value  = total;
   closeModal("attackQueryMask");
 }
 
@@ -2880,7 +3128,7 @@ function openPickModal(part, side) {
   }
 
   if (list.length === 0) {
-    html += `<p style="color:var(--text-dim);text-align:center;padding:20px;">没有含${sideLabel}「${part}」的套装</p>`;
+    html += `<p style="color:var(--text-dim);text-align:center;padding:20px;">没有含${sideLabel}「${part}」的套装，请先录入</p>`;
   } else {
     // 每行一个：色块 + 全称(简称) + 该套在该部位的属性数值明细
     html += `<div class="pick-list pick-list-vertical">` +
@@ -3100,13 +3348,908 @@ function toggleActivate(pid) {
 }
 
 /* ============================================================
-   十五、装备库弹窗（只读，数据来自 data.json）
+   十五、录入弹窗
+============================================================ */
+
+/* 打开录入弹窗（新建或编辑） */
+function openEntryModal(periodId = null) {
+  editingPeriodId = periodId;
+  if (periodId) {
+    const p = state.periods.find(x => x.id === periodId);
+    entryDraft = JSON.parse(JSON.stringify(p));   // 深拷贝
+    document.getElementById("entryTitle").textContent = "编辑套装 - " + p.name;
+  } else {
+    entryDraft = makeEmptyPeriod("新套装");
+    document.getElementById("entryTitle").textContent = "录入新套装";
+  }
+  renderEntryBody();
+  openModal("entryMask");
+}
+
+/* 渲染录入弹窗内容 */
+function renderEntryBody() {
+  const body = document.getElementById("entryBody");
+  const p = entryDraft;
+  body.innerHTML = `
+    <div class="entry-section">
+      <h4>基础信息</h4>
+      <div class="entry-row">
+        <label>全称</label>
+        <input class="input flex" id="draftName" value="${escapeHtml(p.name)}" placeholder="套装完整名称">
+      </div>
+      <div class="entry-row" style="margin-top:8px;">
+        <label>简称</label>
+        <input class="input flex" id="draftShortName" value="${escapeHtml(p.shortName || p.name)}" placeholder="格子卡片上显示的简称">
+        <label>底色</label>
+        <input type="color" class="input-color" id="draftColor" value="${p.color}">
+      </div>
+    </div>
+
+    <div class="entry-section">
+      <h4>OCR 识图（可选）</h4>
+      <div class="ocr-box" id="ocrBox" onclick="document.getElementById('ocrFile').click()">
+        <div class="ohint">点击或拖入截图</div>
+        <img class="ocr-preview" id="ocrPreview">
+        <input type="file" id="ocrFile" accept="image/*" style="display:none" onchange="onOcrPick(event)">
+      </div>
+      <div class="entry-row" style="margin-top:8px;">
+        <button class="btn" onclick="runOcr()">开始识别</button>
+        <span id="ocrStatus" style="color:var(--text-faint);font-size:12px;"></span>
+      </div>
+      <div class="ocr-raw" id="ocrRaw"></div>
+    </div>
+
+    <div class="entry-two-col">
+      <!-- 左列：左5件单件属性 + 左套装效果 -->
+      <div class="entry-col">
+        <div class="entry-section">
+          <h4>左套装 · 单件属性</h4>
+          <div id="leftParts"></div>
+        </div>
+        <div class="entry-section">
+          <h4>左套装效果</h4>
+          <div id="leftBonus"></div>
+          <button class="btn btn-ghost" style="margin-top:8px;" onclick="addBonus('setLeft')">+ 添加档位</button>
+        </div>
+      </div>
+      <!-- 右列：右饰品单件属性 + 右套装效果 -->
+      <div class="entry-col">
+        <div class="entry-section">
+          <h4>右套装 · 单件属性</h4>
+          <div id="rightParts"></div>
+          <button class="btn btn-ghost" style="margin-top:8px;" onclick="addRightPart()">+ 添加右部位</button>
+        </div>
+        <div class="entry-section">
+          <h4>右套装效果</h4>
+          <div id="rightBonus"></div>
+          <button class="btn btn-ghost" style="margin-top:8px;" onclick="addBonus('setRight')">+ 添加档位</button>
+        </div>
+      </div>
+    </div>
+  `;
+  renderDraftParts("leftParts", "left", LEFT_PARTS);
+  renderDraftParts("rightParts", "right", Object.keys(p.right));
+  renderDraftBonus("leftBonus", "setLeft");
+  renderDraftBonus("rightBonus", "setRight");
+  // 绑定 OCR 拖拽
+  const ocrBox = document.getElementById("ocrBox");
+  ocrBox.addEventListener("dragover", e => { e.preventDefault(); ocrBox.classList.add("dragover"); });
+  ocrBox.addEventListener("dragleave", () => ocrBox.classList.remove("dragover"));
+  ocrBox.addEventListener("drop", e => {
+    e.preventDefault();
+    ocrBox.classList.remove("dragover");
+    const f = e.dataTransfer.files[0];
+    if (f) doOcr(f);
+  });
+  // 基础信息联动
+  document.getElementById("draftName").addEventListener("input", e => p.name = e.target.value);
+  document.getElementById("draftShortName").addEventListener("input", e => p.shortName = e.target.value);
+  document.getElementById("draftColor").addEventListener("input", e => p.color = e.target.value);
+}
+
+/* 渲染部位卡片 */
+function renderDraftParts(containerId, side, parts) {
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = "";
+  // 已使用的部位（用于右部件下拉过滤）
+  const usedRight = new Set(Object.keys(entryDraft.right));
+  parts.forEach(part => {
+    const card = document.createElement("div");
+    card.className = "part-card";
+    const attrs = entryDraft[side][part] || [];
+    let partHeader;
+    if (side === "left") {
+      // 左5件固定：用静态文本，不可改名
+      partHeader = `<span class="ptitle">${escapeHtml(part)}</span>`;
+    } else {
+      // 右部件：用下拉选择，选项 = 当前已选 + 未用的部位（已用部位直接不显示）
+      const optsHtml = RIGHT_PARTS
+        .filter(rp => rp === part || !usedRight.has(rp))
+        .map(rp => `<option value="${escapeHtml(rp)}" ${rp === part ? "selected" : ""}>${escapeHtml(rp)}</option>`)
+        .join("");
+      partHeader = `
+        <select class="input" style="width:120px;background:#ffffff;color:var(--text);"
+                onchange="renamePart('right','${escapeHtml(part)}',this.value)">
+          ${optsHtml}
+        </select>
+      `;
+    }
+    card.innerHTML = `
+      <div class="part-card-head">
+        ${partHeader}
+        ${side === "right" ? `<button class="btn btn-ghost btn-icon" onclick="removeRightPart('${escapeHtml(part)}')" title="删除">×</button>` : ""}
+      </div>
+      <div class="attr-lines">
+        ${attrs.map((a, i) => attrLineHtml(side, part, i, a)).join("")}
+      </div>
+      <button class="btn btn-ghost" style="margin-top:6px;font-size:12px;" onclick="addAttr('${side}','${escapeHtml(part)}')">+ 添加属性</button>
+    `;
+    wrap.appendChild(card);
+  });
+}
+
+/* 单行属性行 HTML（百分号固定不可编辑） */
+function attrLineHtml(side, part, i, a) {
+  // 收集当前 part 下其他行已选的 attrId（冲突词条直接从选项里删掉，不显示）
+  const usedIds = (entryDraft[side][part] || [])
+    .map((x, idx) => idx !== i ? x.attrId : null)
+    .filter(x => x);
+  const opts = ATTR_DICT
+    .filter(at => !usedIds.includes(at.id) || a.attrId === at.id)   // 本行已选的保留，其余冲突的不显示
+    .map(at => `<option value="${at.id}" ${a.attrId === at.id ? "selected" : ""}>${attrLabel(at.id)}</option>`)
+    .join("");
+  return `
+    <div class="attr-line">
+      <select onchange="updateAttr('${side}','${escapeHtml(part)}',${i},'attrId',this.value)">
+        <option value="">(无)</option>${opts}
+      </select>
+      <input type="number" step="any" min="0" value="${a.value === null ? "" : a.value}" placeholder="数值"
+             oninput="updateAttr('${side}','${escapeHtml(part)}',${i},'value',this.value === '' ? null : Math.max(0, Number(this.value)))">
+      <span class="unit-fixed">%</span>
+      <button class="line-del" onclick="delAttr('${side}','${escapeHtml(part)}',${i})">×</button>
+    </div>`;
+}
+
+/* 渲染套装效果档位 */
+function renderDraftBonus(containerId, key) {
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = "";
+  const list = entryDraft[key] || [];
+  list.forEach((bonus, i) => {
+    const block = document.createElement("div");
+    block.className = "bonus-block";
+    block.innerHTML = `
+      <div class="bonus-head">
+        <span class="blabel">需要</span>
+        <input type="number" class="need-input" value="${bonus.need}" min="1" onchange="updateBonus('${key}',${i},'need',Number(this.value))">
+        <span class="blabel">件触发</span>
+        <button class="btn btn-ghost btn-icon" style="margin-left:auto;" onclick="delBonus('${key}',${i})" title="删除档位">×</button>
+      </div>
+      <div>
+        ${(bonus.effects || []).map((a, j) => attrLineHtmlBonus(key, i, j, a)).join("")}
+      </div>
+      <button class="btn btn-ghost" style="margin-top:6px;font-size:12px;" onclick="addBonusAttr('${key}',${i})">+ 添加效果</button>
+    `;
+    wrap.appendChild(block);
+  });
+}
+
+/* 套装效果属性行（百分号固定不可编辑） */
+function attrLineHtmlBonus(key, i, j, a) {
+  // 收集当前 bonus 下其他行已选的 attrId（冲突词条直接从选项里删掉，不显示）
+  const usedIds = ((entryDraft[key] || [])[i]?.effects || [])
+    .map((x, idx) => idx !== j ? x.attrId : null)
+    .filter(x => x);
+  const opts = ATTR_DICT
+    .filter(at => !usedIds.includes(at.id) || a.attrId === at.id)
+    .map(at => `<option value="${at.id}" ${a.attrId === at.id ? "selected" : ""}>${attrLabel(at.id)}</option>`)
+    .join("");
+  return `
+    <div class="attr-line">
+      <select onchange="updateBonusAttr('${key}',${i},${j},'attrId',this.value)">
+        <option value="">(无)</option>${opts}
+      </select>
+      <input type="number" step="any" min="0" value="${a.value === null ? "" : a.value}" placeholder="数值"
+             oninput="updateBonusAttr('${key}',${i},${j},'value',this.value === '' ? null : Math.max(0, Number(this.value)))">
+      <span class="unit-fixed">%</span>
+      <button class="line-del" onclick="delBonusAttr('${key}',${i},${j})">×</button>
+    </div>`;
+}
+
+/* —— 录入弹窗操作 —— */
+function addAttr(side, part) {
+  entryDraft[side][part] = entryDraft[side][part] || [];
+  entryDraft[side][part].push(makeAttr());
+  renderDraftParts(side === "left" ? "leftParts" : "rightParts", side, Object.keys(entryDraft[side]));
+}
+function updateAttr(side, part, i, field, val) {
+  if (!entryDraft[side][part]) return;
+  // 数值字段强制 ≥0（无负数属性）
+  if (field === "value" && val !== null) val = Math.max(0, val);
+  entryDraft[side][part][i][field] = val;
+  entryDraft[side][part][i].raw = `${findAttr(val)?.label || ""} ${val}`;
+}
+function delAttr(side, part, i) {
+  entryDraft[side][part].splice(i, 1);
+  renderDraftParts(side === "left" ? "leftParts" : "rightParts", side, Object.keys(entryDraft[side]));
+}
+function addRightPart() {
+  // 找第一个还没添加的右部件（按 RIGHT_PARTS 顺序）
+  const cand = RIGHT_PARTS.find(p => !entryDraft.right[p]);
+  if (!cand) { toast("右部件已全部添加", "error"); return; }
+  // 新增部位初始自带一条待编辑的属性词条
+  entryDraft.right[cand] = [makeAttr()];
+  renderDraftParts("rightParts", "right", Object.keys(entryDraft.right));
+}
+function removeRightPart(part) {
+  delete entryDraft.right[part];
+  renderDraftParts("rightParts", "right", Object.keys(entryDraft.right));
+}
+function renamePart(side, oldName, newName) {
+  if (!newName || oldName === newName) return;
+  entryDraft[side][newName] = entryDraft[side][oldName] || [];
+  delete entryDraft[side][oldName];
+  renderDraftParts(side === "left" ? "leftParts" : "rightParts", side, Object.keys(entryDraft[side]));
+}
+function addBonus(key) {
+  entryDraft[key] = entryDraft[key] || [];
+  // 默认 n 取已有档位里没用过的最小值（2、3、4...），保证多个档位 n 不相同
+  const usedNeeds = new Set(entryDraft[key].map(b => Number(b.need) || 0));
+  let n = 2;
+  while (usedNeeds.has(n)) n++;
+  // 新增档位初始自带一条待编辑的属性词条
+  entryDraft[key].push({ need: n, effects: [makeAttr()] });
+  renderDraftBonus(key === "setLeft" ? "leftBonus" : "rightBonus", key);
+}
+function delBonus(key, i) {
+  entryDraft[key].splice(i, 1);
+  renderDraftBonus(key === "setLeft" ? "leftBonus" : "rightBonus", key);
+}
+function updateBonus(key, i, field, val) {
+  entryDraft[key][i][field] = val;
+}
+function addBonusAttr(key, i) {
+  entryDraft[key][i].effects = entryDraft[key][i].effects || [];
+  entryDraft[key][i].effects.push(makeAttr());
+  renderDraftBonus(key === "setLeft" ? "leftBonus" : "rightBonus", key);
+}
+function updateBonusAttr(key, i, j, field, val) {
+  // 数值字段强制 ≥0（无负数属性）
+  if (field === "value" && val !== null) val = Math.max(0, val);
+  entryDraft[key][i].effects[j][field] = val;
+}
+function delBonusAttr(key, i, j) {
+  entryDraft[key][i].effects.splice(j, 1);
+  renderDraftBonus(key === "setLeft" ? "leftBonus" : "rightBonus", key);
+}
+
+/* 确认入库 */
+function savePeriodFromEntry() {
+  const nameInput = document.getElementById("draftName");
+  const shortInput = document.getElementById("draftShortName");
+  const colorInput = document.getElementById("draftColor");
+  if (nameInput) entryDraft.name = nameInput.value.trim();
+  if (shortInput) entryDraft.shortName = shortInput.value.trim();
+  if (colorInput) entryDraft.color = colorInput.value;
+  // 简称为空时默认用全称
+  if (!entryDraft.shortName) entryDraft.shortName = entryDraft.name;
+  if (!entryDraft.name || !entryDraft.name.trim()) { toast("请填套装全称", "error"); return; }
+  // 兜底：左部位强制只保留左五件，多余的一律移到右边饰品
+  Object.keys(entryDraft.left).forEach(k => {
+    if (!LEFT_PARTS.includes(k)) {
+      if (!entryDraft.right[k]) entryDraft.right[k] = entryDraft.left[k];
+      delete entryDraft.left[k];
+    }
+  });
+  if (editingPeriodId) {
+    const idx = state.periods.findIndex(p => p.id === editingPeriodId);
+    if (idx >= 0) state.periods[idx] = entryDraft;
+  } else {
+    state.periods.push(entryDraft);
+  }
+  saveState();
+  closeModal("entryMask");
+  entryDraft = null;
+  editingPeriodId = null;
+  renderAll();
+  toast("已保存", "success");
+}
+
+/* ============================================================
+   十六、OCR 识别与解析
+============================================================ */
+
+let ocrImageFile = null;
+function onOcrPick(e) {
+  const f = e.target.files[0];
+  if (f) doOcr(f);
+}
+
+async function runOcr() {
+  if (!ocrImageFile) { toast("请先选择图片", "error"); return; }
+  await doOcr(ocrImageFile);
+}
+
+async function doOcr(file) {
+  ocrImageFile = file;
+  const preview = document.getElementById("ocrPreview");
+  const raw = document.getElementById("ocrRaw");
+  const status = document.getElementById("ocrStatus");
+  const btn = document.querySelector('button.btn-primary[onclick="runOcr()"]')
+           || document.querySelector('button[onclick="runOcr()"]');
+  // 预览
+  const reader = new FileReader();
+  reader.onload = e => { preview.src = e.target.result; preview.classList.add("show"); };
+  reader.readAsDataURL(file);
+  raw.classList.remove("show");
+  // 禁用按钮防重复点
+  if (btn) btn.disabled = true;
+  // 友好的进度提示（AI 模式下大模型推理慢，避免误以为卡死）
+  let dots = 0;
+  status.textContent = "识别中，请稍候";
+  const dotTimer = setInterval(() => {
+    dots = (dots + 1) % 4;
+    const suffix = ".".repeat(dots) + " ".repeat(3 - dots);
+    status.textContent = (state.settings.ocrMode === "api"
+      ? "AI 推理中，请耐心等待" + suffix
+      : "本地 OCR 识别中" + suffix);
+  }, 600);
+  let text = "";
+  try {
+    if (state.settings.ocrMode === "api") {
+      text = await ocrByApi(file);
+    } else {
+      text = await ocrByLocal(file);
+    }
+  } catch (e) {
+    clearInterval(dotTimer);
+    status.textContent = "识别失败：" + e.message;
+    if (btn) btn.disabled = false;
+    toast("识别失败", "error");
+    return;
+  }
+  clearInterval(dotTimer);
+  if (btn) btn.disabled = false;
+  status.textContent = `识别完成（${text.length}字）`;
+  raw.textContent = text;
+  raw.classList.add("show");
+  // 先清空 entryDraft 里已有属性（无论是本地还是大模型解析，都是重新录入）
+  ["left", "right"].forEach(side => {
+    if (entryDraft[side]) {
+      Object.keys(entryDraft[side]).forEach(part => { entryDraft[side][part] = []; });
+    }
+  });
+  entryDraft.setLeft = [];
+  entryDraft.setRight = [];
+  // 解析并填入草稿（根据设置选择本地正则 or 大模型，大模型失败自动回退本地）
+  let parseSource = "";   // 记录实际用了哪种解析方式，用于 toast 提示
+  let apiResultText = ""; // 大模型返回原文（渲染后恢复显示）
+  try {
+    if (state.settings.parseMode === "api") {
+      status.textContent = "大模型解析中，请稍候（超时将自动用本地解析）...";
+      try {
+        apiResultText = await parseOcrByApi(text);
+        parseSource = "大模型";
+      } catch (apiErr) {
+        console.warn("[大模型解析失败，回退本地]", apiErr.message);
+        toast("大模型解析失败：" + apiErr.message + "，已自动用本地解析", "error");
+        parseOcrToDraft(text);
+        parseSource = "本地正则";
+      }
+    } else {
+      parseOcrToDraft(text);
+      parseSource = "本地正则";
+    }
+    renderEntryBody();
+    // 渲染后恢复 OCR 识别文字 + 大模型返回内容（renderEntryBody 会清空 ocrRaw）
+    const rawEl = document.getElementById("ocrRaw");
+    if (rawEl && text) {
+      let displayText = text;
+      if (apiResultText) {
+        displayText += "\n\n—— 大模型解析返回 ——\n" + apiResultText;
+      }
+      rawEl.textContent = displayText;
+      rawEl.classList.add("show");
+    }
+    // 统计解析到了多少条属性，方便用户判断是否解析成功
+    let totalAttrs = 0;
+    ["left", "right"].forEach(s => {
+      Object.values(entryDraft[s] || {}).forEach(arr => { totalAttrs += (arr || []).length; });
+    });
+    totalAttrs += (entryDraft.setLeft || []).reduce((n, b) => n + (b.effects || []).length, 0);
+    totalAttrs += (entryDraft.setRight || []).reduce((n, b) => n + (b.effects || []).length, 0);
+    if (totalAttrs > 0) {
+      toast(`${parseSource}解析成功（${totalAttrs}条属性）`, "success");
+    } else {
+      toast("识别完成但未匹配到属性，请检查识别文字格式", "error");
+    }
+  } catch (e) {
+    console.error("[OCR解析错误]", e);
+    toast("解析出错：" + e.message, "error");
+  }
+}
+
+/* 本地 Tesseract.js OCR */
+async function ocrByLocal(file) {
+  if (typeof Tesseract === "undefined") throw new Error("Tesseract.js 未加载");
+  const lang = state.settings.lang || "chi_sim";
+  const result = await Tesseract.recognize(file, lang, {
+    logger: m => {
+      const status = document.getElementById("ocrStatus");
+      if (status && m.status === "recognizing text") {
+        status.textContent = `识别中... ${Math.round(m.progress * 100)}%`;
+      }
+    }
+  });
+  return result.data.text || "";
+}
+
+/* 大模型 API 模式（180 秒超时，避免无限卡住） */
+async function ocrByApi(file) {
+  const url = state.settings.apiProxyUrl;
+  if (!url) throw new Error("未配置 API 代理 URL");
+  if (!state.settings.apiKey) throw new Error("未填 API Key，请到「设置」里填入");
+  const b64 = await fileToBase64(file);
+  // AbortController 实现 fetch 超时
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 180000);   // 180 秒
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image: b64,
+        apiKey: state.settings.apiKey,
+        apiUrl: state.settings.apiUrl,
+        model: state.settings.model
+      }),
+      signal: controller.signal
+    });
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e.name === "AbortError") throw new Error("请求超时（180秒），请检查 API Key 是否有效、网络是否可达");
+    throw new Error("网络请求失败：" + e.message + "（确认 exe 已启动）");
+  }
+  clearTimeout(timeoutId);
+  if (!resp.ok) {
+    // 尝试读取错误详情
+    let detail = "";
+    try { detail = (await resp.json()).detail || ""; } catch (_) {}
+    throw new Error("API 返回 " + resp.status + (detail ? "：" + detail : ""));
+  }
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error);
+  return data.text || "";
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = e => resolve(e.target.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+/* 大模型解析模式：把 OCR 识别出的文字发给大模型，返回结构化 JSON 后填入 entryDraft */
+async function parseOcrByApi(text) {
+  const url = state.settings.apiProxyUrl;
+  if (!url) throw new Error("未配置 API 代理 URL");
+  if (!state.settings.apiKey) throw new Error("未填 API Key，请到「设置」里填入");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000);   // 120 秒（超时回退本地解析）
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: text,
+        apiKey: state.settings.apiKey,
+        apiUrl: state.settings.apiUrl,
+        model: state.settings.model
+      }),
+      signal: controller.signal
+    });
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e.name === "AbortError") throw new Error("解析超时（120秒）");
+    throw new Error("网络请求失败：" + e.message);
+  }
+  clearTimeout(timeoutId);
+  if (!resp.ok) {
+    let detail = "";
+    try { detail = (await resp.json()).detail || ""; } catch (_) {}
+    throw new Error("API 返回 " + resp.status + (detail ? "：" + detail : ""));
+  }
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error);
+  const resultText = data.text || "";
+
+  // 把大模型返回原文显示到 OCR 文字区下方（exe 无 F12，方便排查）
+  const debugLine = document.getElementById("ocrRaw");
+  if (debugLine) {
+    debugLine.textContent += "\n\n—— 大模型解析返回 ——\n" + resultText;
+  }
+  // 解析逐行格式：位置|attrId|数值
+  applyParsedLinesToDraft(resultText);
+  return resultText;   // 返回原文，供 doOcr 显示
+}
+
+/* 把大模型返回的逐行格式填入 entryDraft
+   每行格式：位置|attrId|数值
+   位置：单件部位名（发型/上衣/.../戒指）、通用（所有左部位）、左套装N件、右套装N件
+*/
+function applyParsedLinesToDraft(text) {
+  if (!text) return;
+  const LEFT_PARTS = ["发型", "上衣", "下衣", "手套", "鞋子"];
+  const RIGHT_PARTS = ["武器", "武饰", "辅助", "脸上", "脸中", "脸下", "手臂", "耳环", "项链", "戒指"];
+  const validAttrIds = new Set([
+    "phys_atk", "mag_atk", "crit_rate", "crit_dmg", "maximize", "polarity", "adapt",
+    "hp", "mp", "p2_skill_dmg", "p3_skill_dmg", "all_skill_dmg", "cd_reduce",
+    "mp_cost_reduce", "boss_dmg", "dot_dmg", "high_hp_dmg", "low_hp_dmg", "hp100_dmg",
+    "move_speed", "jump_power", "dmg_reduce", "all_dmg"
+  ]);
+
+  const lines = text.split(/\r?\n/);
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    // 跳过可能的标题/说明行（不含 | 的行忽略）
+    const parts = line.split("|").map(s => s.trim());
+    if (parts.length < 3) continue;
+    const [pos, attrId, valStr] = parts;
+    if (!validAttrIds.has(attrId)) continue;
+    const value = parseFloat(valStr);
+    if (isNaN(value)) continue;
+
+    const attr = makeAttr(attrId, value, "%", false);
+
+    // 套装档位：左套装N件 / 右套装N件
+    const setMatch = pos.match(/^(左|右)套装\s*(\d+)\s*件$/);
+    if (setMatch) {
+      const side = setMatch[1] === "左" ? "setLeft" : "setRight";
+      const need = parseInt(setMatch[2], 10);
+      let bonus = entryDraft[side].find(b => b.need === need);
+      if (!bonus) {
+        bonus = { need, effects: [] };
+        entryDraft[side].push(bonus);
+      }
+      bonus.effects.push(attr);
+      continue;
+    }
+
+    // 通用 → 所有左部位
+    if (pos === "通用") {
+      LEFT_PARTS.forEach(p => {
+        if (!entryDraft.left[p]) entryDraft.left[p] = [];
+        entryDraft.left[p].push(attr);
+      });
+      continue;
+    }
+
+    // 单件部位
+    let side = null, part = pos;
+    if (LEFT_PARTS.includes(pos)) side = "left";
+    else if (RIGHT_PARTS.includes(pos)) side = "right";
+    if (side) {
+      if (!entryDraft[side][part]) entryDraft[side][part] = [];
+      entryDraft[side][part].push(attr);
+    }
+  }
+}
+
+/* —— OCR 文本解析逻辑 ——
+   规则：
+   1. 全角冒号→半角，全角空格→半角，压缩多余空格，按行遍历
+   2. 检测段落标题"单件效果"/"套装效果"，可能带"左/右"也可能不带
+   3. 不带左/右时按出现顺序：第一次单件→左，第一次套装→左套装，第二次→右，第二次右套装
+   4. 部位名自动判定左右：发型/上衣/下衣/手套/鞋子→左，其他→右
+   5. N件 格式灵活匹配：2件: -2件: *2件 2 件 都能认，不要求冒号
+   6. * 前缀的效果行有兜底逻辑，归入最近的套装档位
+   7. 续行（没有N件前缀的行）自动追加到当前 bonus
+*/
+function parseOcrToDraft(rawText) {
+  // 注：entryDraft 的清空已统一在 doOcr() 中处理，此处不再重复清空
+  // 1. 预处理
+  //    - 全角冒号→半角，全角空格→半角，压缩多余空格
+  //    - 去除 AI 可能添加的 markdown 代码块标记（```）
+  //    - 去除 AI 可能添加的说明性前缀（"好的"、"以下是"、"图片中的文字"等）
+  let text = rawText
+    .replace(/```[a-zA-Z]*\n?/g, "")       // 去除 ``` 和 ```lang
+    .replace(/```/g, "")                      // 去除残留的 ```
+    .replace(/：/g, ":")                       // 全角冒号→半角
+    .replace(/％/g, "%")                       // 全角百分号→半角
+    .replace(/　/g, " ")                       // 全角空格→半角
+    .replace(/[ \t]+/g, " ")
+    .trim();
+  // 去除开头的 AI 说明性前缀（只去掉前几行里的说明文字，不动正文）
+  const preambleRegex = /^(好的|以下|这是|图片中的|识别结果|文字内容|：|:)[\s\S]{0,30}?[\n\r]/;
+  text = text.replace(preambleRegex, "").trim();
+  const lines = text.split(/\r?\n/).map(l => {
+    // 去除行首的 bullet 符号：- • · * ＊ 等（但保留数字，避免破坏"3件"档位行）
+    return l.replace(/^[\s\-•·*＊]+/, "").trim();
+  }).filter(Boolean);
+
+  // 2. 段落扫描
+  let currentSide = null;     // "left" | "right"
+  let currentMode = null;     // "single" | "bonus"
+  let singleCount = 0;        // 不带左/右时的单件效果出现次数
+  let bonusCount = 0;
+  let currentPart = null;    // 当前正在追加的部位
+  let currentBonus = null;    // 当前正在追加的套装档位
+  let pendingAttrId = null;  // 跨行属性合并：记录上一行只匹配到属性名但无数值的 attrId
+
+  /* 把解析出的 attr 推到当前上下文（part 或 bonus），并处理 pending 状态
+     - 若 at 是数组（多属性拆分）→ 逐个 push
+     - 若 at 只有属性名无数值（isDesc=true） → 记 pending，等下一行补数值
+     - 若 at 只有数值无属性名 → 用 pending 补全
+     - 其他情况正常 push 并清 pending
+     - 去重：同一部位/档位内同 attrId 只保留第一条
+     - 单件模式无当前部位时：艾尔之光单件效果5件通用，推送到所有左5件 */
+  function pushAttr(at) {
+    if (!at) return;
+    // 多属性拆分返回数组 → 逐个 push
+    if (Array.isArray(at)) { at.forEach(x => pushAttr(x)); return; }
+    if (at.attrId && at.value === null && at.isDesc) {
+      pendingAttrId = at.attrId;
+      return;
+    }
+    if (!at.attrId && at.value !== null && pendingAttrId) {
+      at.attrId = pendingAttrId;
+      at.isDesc = false;
+      pendingAttrId = null;
+    } else if (at.attrId && at.value !== null) {
+      pendingAttrId = null;
+    }
+    if (currentMode === "single") {
+      if (currentPart) {
+        // 有指定部位：推到该部位
+        const ctx = entryDraft[currentSide][currentPart];
+        if (ctx && at.attrId && ctx.some(x => x.attrId === at.attrId)) return;
+        entryDraft[currentSide][currentPart].push(at);
+      } else {
+        // 无指定部位：单件效果5件通用 → 推到所有左5件
+        LEFT_PARTS.forEach(lp => {
+          const ctx = entryDraft.left[lp];
+          if (ctx && at.attrId && ctx.some(x => x.attrId === at.attrId)) return;
+          if (ctx) ctx.push({ ...at });  // 深拷贝，避免引用共享
+        });
+      }
+    } else if (currentMode === "bonus" && currentBonus) {
+      const ctx = currentBonus.effects;
+      if (ctx && at.attrId && ctx.some(x => x.attrId === at.attrId)) return;
+      currentBonus.effects.push(at);
+    }
+  }
+
+  for (const line of lines) {
+    // 调试：输出每行的处理结果（F12 控制台可看）
+    console.log("[OCR行]", JSON.stringify(line));
+    // 检测段落标题（支持"单件效果"/"套装效果"/"单件属性"/"套装属性"等写法）
+    const hasSingle = /单件效果|单件属性/.test(line);
+    const hasBonus  = /套装效果|套装属性/.test(line);
+    if (hasSingle && hasBonus) {
+      // 复合标题，跳过
+      continue;
+    }
+    if (hasSingle || hasBonus) {
+      // 检测左/右
+      if (/左/.test(line)) {
+        currentSide = "left";
+      } else if (/右/.test(line)) {
+        currentSide = "right";
+      } else {
+        // 不带左/右：按出现次数推断
+        if (hasSingle) {
+          singleCount++;
+          currentSide = singleCount === 1 ? "left" : "right";
+        } else {
+          bonusCount++;
+          currentSide = bonusCount === 1 ? "left" : "right";
+        }
+      }
+      currentMode = hasSingle ? "single" : "bonus";
+      currentPart = null;
+      currentBonus = null;
+      pendingAttrId = null;   // 段落切换清空 pending
+      continue;
+    }
+
+    // 套装档位匹配：支持 "2件" / "2个" / "-2个" / "*2件" 等格式
+    const bonusMatch = line.match(/^[*\-]?\s*(\d+)\s*[件个]/) || line.match(/(\d+)\s*[件个]/);
+    if (currentMode === "bonus" && bonusMatch) {
+      const need = parseInt(bonusMatch[1]);
+      const sideKey = currentSide === "left" ? "setLeft" : "setRight";
+      entryDraft[sideKey] = entryDraft[sideKey] || [];
+      currentBonus = { need, effects: [] };
+      entryDraft[sideKey].push(currentBonus);
+      pendingAttrId = null;
+      // 同行可能还有属性
+      const rest = line.replace(bonusMatch[0], "").replace(/^[:：]/, "").trim();
+      if (rest) pushAttr(parseAttrLine(rest));
+      continue;
+    }
+
+    // 部位行：以部位名开头
+    // 强制：左部位只能是左五件；其余部位名一律归入右边饰品
+    const partHit = detectPartLine(line);
+    if (partHit && currentMode === "single") {
+      const { part, rest } = partHit;
+      const side = LEFT_PARTS.includes(part) ? "left" : "right";
+      if (!entryDraft[side][part]) entryDraft[side][part] = [];
+      currentPart = part;
+      currentSide = side;   // 同步 currentSide，保证后续续行进对地方
+      pendingAttrId = null;
+      if (rest) pushAttr(parseAttrLine(rest));
+      continue;
+    }
+
+    // * 前缀的效果行 → 归入最近 bonus（套装档位下的属性）
+    const starMatch = line.match(/^\*/);
+    if (starMatch) {
+      if (currentBonus) {
+        pushAttr(parseAttrLine(line.replace(/^\*/, "").trim()));
+      } else if (currentMode === "single") {
+        // 单件模式下 * 前缀也可能是单件属性
+        pushAttr(parseAttrLine(line.replace(/^\*/, "").trim()));
+      }
+      continue;
+    }
+
+    // 续行：追加到当前 part 或 bonus
+    if (currentMode === "single" && currentPart) {
+      pushAttr(parseAttrLine(line));
+      continue;
+    }
+    if (currentMode === "bonus" && currentBonus) {
+      pushAttr(parseAttrLine(line));
+      continue;
+    }
+
+    // 没有任何上下文的属性行：
+    //   1. 先尝试按部位名识别
+    //   2. 否则当作单件效果（艾尔之光单件效果无部位名时5件通用）
+    if (!currentMode) {
+      const partHit2 = detectPartLine(line);
+      if (partHit2) {
+        const { part, rest } = partHit2;
+        // 强制：左部位只能是左五件；其余部位名一律归入右边饰品
+        const side = LEFT_PARTS.includes(part) ? "left" : "right";
+        if (!entryDraft[side][part]) entryDraft[side][part] = [];
+        currentPart = part;
+        currentSide = side;
+        pendingAttrId = null;
+        currentMode = "single";
+        if (rest) pushAttr(parseAttrLine(rest));
+      } else {
+        // 无部位名、无段落标题 → 当作单件效果（推到所有左5件）
+        currentMode = "single";
+        currentSide = currentSide || "left";
+        currentPart = null;
+        pushAttr(parseAttrLine(line));
+      }
+      continue;
+    }
+  }
+  // 调试：输出解析结果
+  console.log("[OCR解析结果]", JSON.stringify({
+    left: entryDraft.left,
+    right: entryDraft.right,
+    setLeft: entryDraft.setLeft,
+    setRight: entryDraft.setRight
+  }, null, 2));
+}
+
+/* 检测部位行：返回 {part, rest} 或 null */
+function detectPartLine(line) {
+  const allParts = [...LEFT_PARTS, ...RIGHT_PARTS];
+  // 最长匹配优先
+  const sorted = [...allParts].sort((a, b) => b.length - a.length);
+  for (const part of sorted) {
+    if (line.startsWith(part) || line.startsWith("*" + part)) {
+      let rest = line.replace(new RegExp("^\\*?" + part), "").replace(/^[:：]/, "").trim();
+      return { part, rest };
+    }
+  }
+  return null;
+}
+
+/* 解析单行属性：返回 attr 对象 或 null */
+/* 查找一行文本里所有匹配到的属性 alias（用于多属性拆分）
+   返回 [{attrId, alias}, ...]，按 alias 长度降序、首次出现位置升序 */
+function matchAllAttrs(text) {
+  if (!text) return [];
+  // 收集所有 alias 并按长度降序
+  const all = [];
+  ATTR_DICT.forEach(a => a.aliases.forEach(al => all.push({ al, id: a.id })));
+  all.sort((x, y) => y.al.length - x.al.length);
+
+  const hits = [];
+  let work = text;          // 工作副本：每匹配到一个就从 work 里移除，避免重复
+  for (const { al, id } of all) {
+    const idx = work.indexOf(al);
+    if (idx >= 0) {
+      hits.push({ attrId: id, alias: al, pos: idx });
+      // 移除已匹配部分，避免重叠
+      work = work.slice(0, idx) + " ".repeat(al.length) + work.slice(idx + al.length);
+    }
+  }
+  return hits;
+}
+
+function parseAttrLine(line) {
+  if (!line) return null;
+  // 跳过明显非属性行
+  if (/^(单件效果|套装效果|左|右)/.test(line)) return null;
+
+  // 先把所有匹配到的属性名 alias 从文本移除，再在剩余文本里找数值
+  const hits = matchAllAttrs(line);
+
+  // 把所有命中 alias 从 line 移除得到 rest（找数值用）
+  let rest = line;
+  hits.forEach(h => {
+    const idx = rest.indexOf(h.alias);
+    if (idx >= 0) rest = rest.slice(0, idx) + " " + rest.slice(idx + h.alias.length);
+  });
+  rest = rest.trim();
+
+  // 在 rest 中找所有带 % 的数字（按出现顺序）
+  // 注意：排除条件百分比（后面跟"以上"/"以下"的，如"100%以下"中的100不是属性值）
+  const pctNums = [];
+  const pctRe = /(-?\d+\.?\d*)\s*%(?!以上|以下)/g;
+  let m;
+  while ((m = pctRe.exec(rest)) !== null) {
+    pctNums.push(Number(m[1]));
+  }
+
+  // 无匹配属性 → 仅有数值时记无名属性
+  if (hits.length === 0) {
+    let value = pctNums[0] ?? null;
+    if (value === null) {
+      // 退而求其次：找普通数字（排除秒/次/层等单位数字）
+      const nm = rest.match(/(-?\d+\.?\d*)\s*(?:$|[^a-zA-Z\u4e00-\u9fa5%秒次层])/);
+      value = nm ? Number(nm[1]) : null;
+    }
+    if (value === null) return null;
+    return makeAttr("", value, "%", false, line);
+  }
+
+  // 单属性
+  if (hits.length === 1) {
+    let value = pctNums[0] ?? null;
+    if (value === null) {
+      const nm = rest.match(/(-?\d+\.?\d*)\s*(?:$|[^a-zA-Z\u4e00-\u9fa5%秒次层])/);
+      value = nm ? Number(nm[1]) : null;
+    }
+    if (value === null) return makeAttr(hits[0].attrId, null, "", true, line);
+    return makeAttr(hits[0].attrId, value, "%", false, line);
+  }
+
+  // 多属性拆分：按属性在原文中的位置排序，依次分配 rest 里的带%数字
+  // 例如 "技能冷却时间减少 2%，技能MP消耗减少 5%"
+  //   → hits: [cd_reduce, mp_cost_reduce]，pctNums: [2, 5]
+  //   → cd_reduce=2, mp_cost_reduce=5（而不是都取第一个 2）
+  const sorted = [...hits].sort((a, b) => a.pos - b.pos);
+  return sorted.map((h, i) => {
+    let value = pctNums[i] ?? pctNums[pctNums.length - 1] ?? null;
+    if (value === null) {
+      const nm = rest.match(/(-?\d+\.?\d*)\s*(?:$|[^a-zA-Z\u4e00-\u9fa5%秒次层])/);
+      value = nm ? Number(nm[1]) : null;
+    }
+    return makeAttr(h.attrId, value, "%", false, line);
+  });
+}
+
+/* ============================================================
+   十七、装备库弹窗
 ============================================================ */
 
 function openLibraryModal() {
   const body = document.getElementById("libraryBody");
   if (state.periods.length === 0) {
-    body.innerHTML = `<p style="color:var(--text-dim);text-align:center;padding:30px;">冰装库为空，请在 data.json 中添加套装数据</p>`;
+    body.innerHTML = `<p style="color:var(--text-dim);text-align:center;padding:30px;">冰装库为空，请先录入</p>`;
     openModal("libraryMask");
     return;
   }
@@ -3119,6 +4262,7 @@ function openLibraryModal() {
     const rightCnt = p.setRight ? p.setRight.length : 0;
     return `
       <div class="lib-item" data-pid="${p.id}">
+        <span class="lib-handle" title="拖动排序">✋</span>
         <div class="lib-color" style="background:${p.color}"></div>
         <div class="lib-info">
           <div class="lname">${escapeHtml(p.name)}<span style="color:var(--text-dim);font-weight:400;font-size:12px;margin-left:6px;">（${escapeHtml(p.shortName || p.name)}）</span></div>
@@ -3130,25 +4274,162 @@ function openLibraryModal() {
             <b>套装效果:</b> 左${leftCnt}档 / 右${rightCnt}档
           </div>
         </div>
+        <div class="lib-actions">
+          <button class="btn" onclick="openEntryModal('${p.id}')">编辑</button>
+          <button class="btn btn-danger" onclick="deletePeriod('${p.id}')">删除</button>
+        </div>
       </div>`;
   }).join("");
+  bindLibraryDrag(body);
   openModal("libraryMask");
 }
 
+/* 冰装库拖拽排序：✋ 手柄拖动，浮动克隆黄色边框，源位置虚影
+   用 mousedown/mousemove/mouseup 实现，不依赖 HTML5 DnD（弹窗内滚动时更稳定） */
+function bindLibraryDrag(body) {
+  let dragging = null;   // { el, clone, offsetY }
+  body.querySelectorAll(".lib-handle").forEach(handle => {
+    handle.addEventListener("mousedown", e => {
+      e.preventDefault();
+      const el = handle.closest(".lib-item");
+      const rect = el.getBoundingClientRect();
+      // 1. 创建浮动克隆（黄框高亮）
+      const clone = el.cloneNode(true);
+      clone.classList.add("lib-drag-clone");
+      clone.style.width = rect.width + "px";
+      clone.style.left = rect.left + "px";
+      clone.style.top = rect.top + "px";
+      document.body.appendChild(clone);
+      // 2. 源位置变虚影（保留占位）
+      el.classList.add("lib-ghost");
+      dragging = { el, clone, offsetY: e.clientY - rect.top };
+
+      const onMove = ev => {
+        if (!dragging) return;
+        // 克隆跟随鼠标
+        dragging.clone.style.top = (ev.clientY - dragging.offsetY) + "px";
+        // 按鼠标位置决定虚影插入点：与每个兄弟项中点比较
+        const items = [...body.querySelectorAll(".lib-item")].filter(x => x !== dragging.el);
+        let inserted = false;
+        for (const item of items) {
+          const r = item.getBoundingClientRect();
+          if (ev.clientY < r.top + r.height / 2) {
+            body.insertBefore(dragging.el, item);
+            inserted = true;
+            break;
+          }
+        }
+        if (!inserted) body.appendChild(dragging.el);
+      };
+      const onUp = () => {
+        if (!dragging) return;
+        // 3. 按 DOM 顺序回写 state.periods
+        const order = [...body.querySelectorAll(".lib-item")].map(x => x.dataset.pid);
+        state.periods.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+        saveState();
+        dragging.el.classList.remove("lib-ghost");
+        dragging.clone.remove();
+        dragging = null;
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        openLibraryModal();   // 重渲染恢复正常样式
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  });
+}
+
+function deletePeriod(pid) {
+  const p = state.periods.find(x => x.id === pid);
+  if (!p) return;
+  openConfirm("删除套装", `确定删除套装「${escapeHtml(p.name)}」？<br>同时会清理搭配中对该套装的引用。`, () => {
+    state.periods = state.periods.filter(x => x.id !== pid);
+    // 清理所有 build 中对该 period 的引用（slots 是 left|part / right|part 复合 key）
+    // 魔法石按部位槽位保存，不绑定套装，保留不变
+    state.builds.forEach(b => {
+      Object.keys(b.slots).forEach(key => { if (b.slots[key] === pid) delete b.slots[key]; });
+      b.activatedSets = b.activatedSets.filter(id => id !== pid);
+    });
+    saveState();
+    openLibraryModal();
+    renderAll();
+    toast("已删除", "success");
+  });
+}
+
 /* ============================================================
-   十六、设置弹窗
+   十八、设置弹窗
 ============================================================ */
 
 function openSettingsModal() {
   const body = document.getElementById("settingsBody");
   const s = state.settings;
   body.innerHTML = `
-    <div class="entry-section">
-      <label class="toggle-switch">
-        <input type="checkbox" id="setAbbrMode" ${s.abbrMode ? "checked" : ""} onchange="syncSettingsFromInputs(); renderAll();">
-        <span class="toggle-slider"></span>
-        <span class="toggle-label">属性名称缩写</span>
-      </label>
+    <div class="entry-two-col">
+      <div class="entry-col">
+        <div class="entry-section">
+          <h4>OCR 识别模式</h4>
+          <div class="entry-row">
+            <select class="input" id="setOcrMode" onchange="syncSettingsFromInputs()">
+              <option value="local" ${s.ocrMode === "local" ? "selected" : ""}>本地 Tesseract.js</option>
+              <option value="api" ${s.ocrMode === "api" ? "selected" : ""}>大模型 API（需填 API Key）</option>
+            </select>
+          </div>
+        </div>
+        <div class="entry-section">
+          <h4>属性解析模式</h4>
+          <div class="entry-row">
+            <select class="input" id="setParseMode" onchange="syncSettingsFromInputs()">
+              <option value="local" ${s.parseMode === "local" ? "selected" : ""}>本地正则解析</option>
+              <option value="api" ${s.parseMode === "api" ? "selected" : ""}>大模型解析（需填 API Key）</option>
+            </select>
+          </div>
+        </div>
+        <div class="entry-section">
+          <h4>语言包（本地 OCR）</h4>
+          <select class="input" id="setLang" onchange="syncSettingsFromInputs()">
+            <option value="chi_sim" ${s.lang === "chi_sim" ? "selected" : ""}>简体中文</option>
+            <option value="chi_sim+eng" ${s.lang === "chi_sim+eng" ? "selected" : ""}>中文 + 英文</option>
+          </select>
+        </div>
+        <div class="entry-section">
+          <label class="toggle-switch">
+            <input type="checkbox" id="setAbbrMode" ${s.abbrMode ? "checked" : ""} onchange="syncSettingsFromInputs(); renderAll();">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">属性名称缩写</span>
+          </label>
+        </div>
+        <div class="entry-section">
+          <div class="entry-row" style="margin-top:8px;">
+            <button class="btn" onclick="syncSettingsFromInputs(); testApiProxy();">测试 API 连通</button>
+            <span id="testApiResult" style="font-size:12px;color:var(--text-faint);"></span>
+          </div>
+        </div>
+      </div>
+      <div class="entry-col">
+        <div class="entry-section">
+          <h4>API 代理 URL</h4>
+          <input class="input" id="setApiUrl" value="${escapeHtml(s.apiProxyUrl)}" style="width:100%;" onblur="syncSettingsFromInputs()">
+        </div>
+        <div class="entry-section">
+          <h4>API Key（火山方舟）</h4>
+          <input class="input" id="setApiKey" type="password" value="${escapeHtml(s.apiKey)}" style="width:100%;" placeholder="ark-xxxxxxx" onblur="syncSettingsFromInputs()">
+          <p style="font-size:11px;color:var(--text-faint);margin-top:4px;line-height:1.6;">
+            · 到 <a href="https://console.volcengine.com/ark/region:cn-beijing/apiKey" target="_blank" style="color:var(--accent);">火山方舟控制台</a> 创建 API Key<br>
+            · 需先在「开通管理」里开通视觉理解模型<br>
+            · Key 只存在你本机，不会上传、不会跟着 exe 带走
+          </p>
+        </div>
+        <div class="entry-section">
+          <h4>大模型 API 地址</h4>
+          <input class="input" id="setApiBase" value="${escapeHtml(s.apiUrl)}" style="width:100%;" onblur="syncSettingsFromInputs()">
+        </div>
+        <div class="entry-section">
+          <h4>模型名</h4>
+          <input class="input" id="setModel" value="${escapeHtml(s.model)}" style="width:100%;" onblur="syncSettingsFromInputs()">
+        </div>
+      </div>
     </div>
   `;
   openModal("settingsMask");
@@ -3156,7 +4437,15 @@ function openSettingsModal() {
 
 /* 把弹窗里的输入同步到 state.settings 并保存（不关闭弹窗，供失焦/onchange 实时调用） */
 function syncSettingsFromInputs() {
-  state.settings.abbrMode = document.getElementById("setAbbrMode").checked;
+  const s = state.settings;
+  s.ocrMode = document.getElementById("setOcrMode").value;
+  s.parseMode = document.getElementById("setParseMode").value;
+  s.apiProxyUrl = document.getElementById("setApiUrl").value.trim() || "http://127.0.0.1:8787/ocr";
+  s.apiKey = document.getElementById("setApiKey").value.trim();
+  s.apiUrl = document.getElementById("setApiBase").value.trim() || "https://api.siliconflow.cn/v1/chat/completions";
+  s.model = document.getElementById("setModel").value.trim() || "Qwen/Qwen3-VL-32B-Instruct";
+  s.lang = document.getElementById("setLang").value;
+  s.abbrMode = document.getElementById("setAbbrMode").checked;
   saveState();
 }
 
@@ -3167,8 +4456,55 @@ function saveSettings() {
   renderAll();
 }
 
+/* 测试 API 连通：先保存设置，再请求 /test 端点 */
+async function testApiProxy() {
+  // 先保存当前所有设置到 state
+  const apiProxyUrl = document.getElementById("setApiUrl").value.trim() || "http://127.0.0.1:8787/ocr";
+  const apiKey = document.getElementById("setApiKey").value.trim();
+  const apiUrl = document.getElementById("setApiBase").value.trim() || "https://api.siliconflow.cn/v1/chat/completions";
+  const model = document.getElementById("setModel").value.trim() || "Qwen/Qwen3-VL-32B-Instruct";
+  state.settings.apiProxyUrl = apiProxyUrl;
+  state.settings.apiKey = apiKey;
+  state.settings.apiUrl = apiUrl;
+  state.settings.model = model;
+  saveState();
+  const result = document.getElementById("testApiResult");
+  result.style.color = "var(--text-faint)";
+  result.textContent = "测试中...";
+  if (!apiKey) {
+    result.style.color = "#ff6b6b";
+    result.textContent = "× 未填 API Key";
+    return;
+  }
+  try {
+    // 把 /ocr 替换成 /test，把 apiKey 等加到 query string
+    const testBase = apiProxyUrl.replace(/\/ocr\/?$/, "/test").replace(/\/$/, "/test");
+    const qs = new URLSearchParams({ apiKey, apiUrl, model }).toString();
+    const testUrl = testBase + (testBase.includes("?") ? "&" : "?") + qs;
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 30000);
+    const resp = await fetch(testUrl, { signal: controller.signal });
+    clearTimeout(tid);
+    const data = await resp.json();
+    if (data.ok) {
+      result.style.color = "var(--accent)";
+      result.textContent = "✓ API Key 有效，模型：" + (data.model || "");
+    } else {
+      result.style.color = "#ff6b6b";
+      result.textContent = "× " + (data.reason || "失败");
+    }
+  } catch (e) {
+    result.style.color = "#ff6b6b";
+    if (e.name === "AbortError") {
+      result.textContent = "× 请求超时（30秒），可能 exe 未启动或网络问题";
+    } else {
+      result.textContent = "× " + e.message + "（确认 exe 已运行）";
+    }
+  }
+}
+
 /* ============================================================
-   十七、弹窗通用控制
+   十九、弹窗通用控制
 ============================================================ */
 
 function openModal(id) {
@@ -3184,8 +4520,9 @@ function closeModal(id) {
 ============================================================ */
 
 function backupData() {
-  // 静态版：只备份用户数据（冰装库在 data.json 中，不在备份范围）
+  // 直接用 state 当前数据导出（不依赖 localStorage）
   const data = JSON.stringify({
+    periods: state.periods,
     builds: state.builds,
     currentBuildId: state.currentBuildId,
     settings: state.settings,
@@ -3211,16 +4548,17 @@ function restoreData() {
     if (!f) return;
     const r = new FileReader();
     r.onload = async ev => {
-      openConfirm("还原会覆盖当前搭配方案和面板数据，确认继续？", async () => {
+      // 二次确认改成内部弹窗
+      openConfirm("还原会覆盖当前所有数据，确认继续？", async () => {
         try {
           const data = JSON.parse(ev.target.result);
-          /* 注意：periods 来自 data.json（只读），还原不覆盖冰装库 */
+          state.periods = data.periods || [];
           state.builds = data.builds || [];
           state.currentBuildId = data.currentBuildId || (state.builds[0] && state.builds[0].id);
           state.settings = Object.assign(state.settings, data.settings || {});
           migratePanels(data);   // 兼容旧备份文件的单面板格式
           state.includePanel = data.includePanel || false;
-          saveState();
+          saveState();   // 自动同步到后端 data.json + localStorage
           renderAll();
           toast("已还原", "success");
         } catch (err) {
@@ -3237,11 +4575,34 @@ function restoreData() {
    二十一、初始化
 ============================================================ */
 
-// 初始化：先异步等数据加载完再渲染（冰装库从 data.json 读，用户数据从 localStorage 读）
+// 初始化：先异步等数据加载完再渲染（数据从后端 /data 读，避免 localStorage 在 pywebview 中丢失）
 (async () => {
   await loadState();
   renderAll();
 })();
+
+// 窗口关闭前强制同步保存一次数据（pywebview 的 window.beforeunload 事件）
+// 用同步 XMLHttpRequest（不能用 fetch，因为 fetch 是异步的，unload 时会被中断）
+window.addEventListener("beforeunload", () => {
+  try {
+    const payload = JSON.stringify({
+      periods: state.periods,
+      builds: state.builds,
+      currentBuildId: state.currentBuildId,
+      settings: state.settings,
+      panels: state.panels,
+      currentPanelId: state.currentPanelId,
+      includePanel: state.includePanel
+    });
+    // 同步 XHR：阻塞窗口关闭，等保存完成
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/data", false);  // false = 同步
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(payload);
+  } catch (e) {
+    console.warn("关闭前保存失败：", e);
+  }
+});
 
 </script>
 </body>
